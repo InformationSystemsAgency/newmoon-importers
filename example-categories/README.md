@@ -1,6 +1,6 @@
 # Category import example
 
-Example scripts to **import** and **remove** **categories** (with optional **subcategories**) in [Directus](https://directus.io) via the REST API and a static token.
+Example scripts to **import** and **remove** **categories** (with optional **subcategories**) in NewMoon's [Directus](https://directus.io) via the REST API and a static token.
 
 ## Scripts
 

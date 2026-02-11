@@ -30,27 +30,7 @@ import { loremIpsum } from '../utils/lorem.ipsum.js';
 
 /**
  * Put your source rows here (or replace with file parsing later).
- * Required per article:
- * - content_type: UUID from "content_types"
- * - translations: at least one { languages_code, title }
- * Optional per article:
- * - layout: "basic" or "advanced" (case-insensitive)
- * - published_date: ISO datetime string (recommended)
- * - date_created: accepted as alias and mapped to published_date
- * - featured_image_path: local file path to upload (recommended)
- * - attachment_paths: array of local file paths for file_attachments (advanced layout)
- * - attachments: advanced attachment objects:
- *   [{ path, file_name?, make_downloadable?, hide_file_icon?, hide_file_size?, sort?, translations? }]
- * - info_cards: advanced info card objects:
- *   [{ type?, sort?, translations: [{ languages_code, content }] }]
- * - featured_image_attachment_id: id from "file_attachments" (resolved to file UUID)
- * - featured_image_file_id: direct file UUID from "directus_files"
- *
- * Optional per translation:
- * - featured_image_path: local file path (overrides article-level path)
- * - featured_image_attachment_id: id from "file_attachments" (overrides article-level)
- * - featured_image_file_id: direct file UUID (overrides article-level)
- * - featured_image: direct file UUID (overrides all)
+ * For strucutre see README 
  */
 const EXAMPLE_ARTICLES = [
   {
@@ -86,6 +66,147 @@ const EXAMPLE_ARTICLES = [
         ],
       },
     ],
+    content_blocks: [
+      {
+        type: 'block_title',
+        order: 1,
+        data: { font_size: 'h3', column_size: '1/1' },
+        translations: [
+          { languages_code: 'en', title: 'Block Title EN' },
+          { languages_code: 'hy', title: 'Բլոկ Վերնագիր HY' },
+        ],
+      },
+      {
+        type: 'block_richtext',
+        order: 2,
+        data: { font_size: 'base', column_size: '1/1' },
+        translations: [
+          { languages_code: 'en', content: `<p>${loremIpsum('en')}</p>` },
+          { languages_code: 'hy', content: `<p>${loremIpsum('hy')}</p>` },
+        ],
+      },
+      {
+        type: 'block_image',
+        order: 3,
+        data: { image_size: '1/1', alignment: 'left' },
+        translations: [
+          { languages_code: 'en', image_path: 'attachments/1-800x600.png', image_alt_text: 'Image EN' },
+          { languages_code: 'hy', image_path: 'attachments/1-800x600.png', image_alt_text: 'Պատկեր HY' },
+        ],
+      },
+      {
+        type: 'block_video',
+        order: 4,
+        data: {
+          type: 'url',
+          video_url: 'https://www.youtube.com/watch?v=VR6r40j-pxg',
+          video_size: '1/1',
+        },
+      },
+      {
+        type: 'block_audio',
+        order: 5,
+        data: {
+          type: 'url',
+          url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+        },
+      },
+      {
+        type: 'block_embed',
+        order: 6,
+        data: {
+          mode: 'url',
+          url: 'https://example.com',
+        },
+      },
+      {
+        type: 'block_button',
+        order: 7,
+        data: {
+          link: 1,
+          variant: 'primary',
+        },
+      },
+      {
+        type: 'block_alert',
+        order: 8,
+        data: { variant: 'info' },
+        translations: [
+          { languages_code: 'en', title: 'Alert EN', content: '<p>Alert content EN</p>' },
+          { languages_code: 'hy', title: 'Զգուշացում HY', content: '<p>Զգուշացում HY</p>' },
+        ],
+      },
+      {
+        type: 'block_accordions',
+        order: 9,
+        data: { column_size: '1/1' },
+        accordions: [
+          {
+            sort: 1,
+            translations: [
+              { languages_code: 'en', title: 'Accordion EN', content: '<p>Accordion content EN</p>' },
+              { languages_code: 'hy', title: 'Ակորդեոն HY', content: '<p>Ակորդեոն բովանդակություն HY</p>' },
+            ],
+          },
+        ],
+      },
+      {
+        type: 'block_divider',
+        order: 10,
+        data: { icon: 'horizontal_rule' },
+      },
+      {
+        type: 'block_social_media_links',
+        order: 11,
+        data: { internal_identifier: 'article-social-links' },
+        social_media_links: [
+          {
+            order: 1,
+            social_media_platform: '1ce312fe-49eb-4cac-8132-f0931674a361',
+            url: 'https://facebook.com',
+          },
+        ],
+      },
+      {
+        type: 'block_code',
+        order: 12,
+        data: {
+          code: 'console.log(\"Hello from block_code\");',
+          language: 'javascript',
+          theme: 'github-dark',
+        },
+      },
+      {
+        type: 'block_gallery',
+        order: 13,
+        upload_files_paths: ['attachments/1-800x600.png', 'attachments/3-800x600.png'],
+        gallery_items: [
+          {
+            order: 1,
+            image_path: 'attachments/1-800x600.png',
+            translations: [
+              { languages_code: 'en', image_alt_text: 'Gallery image EN' },
+              { languages_code: 'hy', image_alt_text: 'Պատկերասրահի պատկեր HY' },
+            ],
+          },
+        ],
+      },
+      {
+        type: 'block_group',
+        order: 14,
+        data: { layout_option: 'stack', column_size: '1/1' },
+        content_blocks: [
+          {
+            type: 'block_title',
+            order: 1,
+            translations: [
+              { languages_code: 'en', title: 'Nested Group Title EN' },
+              { languages_code: 'hy', title: 'Ներքին խմբի վերնագիր HY' },
+            ],
+          },
+        ],
+      },
+    ],
   },
 ];
 
@@ -114,10 +235,19 @@ const client = createDirectus(directusUrl)
 const ARTICLES_COLLECTION = 'articles';
 const ARTICLES_TRANSLATIONS_COLLECTION = 'articles_translations';
 const ARTICLES_CATEGORIES_COLLECTION = 'articles_categories';
+const ARTICLES_CONTENT_BLOCKS_COLLECTION = 'articles_content_blocks';
 const FILE_ATTACHMENTS_COLLECTION = 'file_attachments';
 const FILE_ATTACHMENTS_TRANSLATIONS_COLLECTION = 'file_attachments_translations';
 const INFO_CARDS_COLLECTION = 'info_cards';
 const INFO_CARDS_TRANSLATIONS_COLLECTION = 'info_cards_translations';
+
+const BLOCK_CHILD_ONE_FIELDS = [
+  'upload_here',
+  'gallery_items',
+  'accordions',
+  'social_media_links',
+  'content_blocks',
+];
 
 function unique(arr) {
   return [...new Set(arr)];
@@ -130,6 +260,21 @@ function getWritableFields(fields, collection, excluded = []) {
     .filter((f) => !f.meta?.readonly)
     .map((f) => f.field)
     .filter((name) => !excluded.includes(name));
+}
+
+function getWritableFieldDefs(fields, collection, excluded = []) {
+  return fields
+    .filter((f) => f.collection === collection)
+    .filter((f) => f.type !== 'alias')
+    .filter((f) => !f.meta?.readonly)
+    .filter((f) => !excluded.includes(f.field))
+    .map((f) => ({
+      field: f.field,
+      required: Boolean(f.meta?.required),
+      type: f.type,
+      interface: f.meta?.interface ?? null,
+      special: f.meta?.special ?? null,
+    }));
 }
 
 function pick(obj, keys) {
@@ -192,10 +337,12 @@ async function readSchema() {
   const snapshot = await client.request(schemaSnapshot());
   const collections = snapshot?.collections ?? [];
   const fields = snapshot?.fields ?? [];
+  const relations = snapshot?.relations ?? [];
 
   const hasArticles = collections.some((c) => c.collection === ARTICLES_COLLECTION);
   const hasTranslations = collections.some((c) => c.collection === ARTICLES_TRANSLATIONS_COLLECTION);
   const hasJunction = collections.some((c) => c.collection === ARTICLES_CATEGORIES_COLLECTION);
+  const hasContentBlocksJunction = collections.some((c) => c.collection === ARTICLES_CONTENT_BLOCKS_COLLECTION);
   const hasFileAttachments = collections.some((c) => c.collection === FILE_ATTACHMENTS_COLLECTION);
   const hasFileAttachmentTranslations = collections.some(
     (c) => c.collection === FILE_ATTACHMENTS_TRANSLATIONS_COLLECTION
@@ -228,10 +375,66 @@ async function readSchema() {
   const infoCardTranslationFields = hasInfoCardTranslations
     ? getWritableFields(fields, INFO_CARDS_TRANSLATIONS_COLLECTION, ['id'])
     : [];
+  const contentBlocksJunctionFields = hasContentBlocksJunction
+    ? getWritableFields(fields, ARTICLES_CONTENT_BLOCKS_COLLECTION, ['id'])
+    : [];
+  const contentBlocksJunctionFieldDefs = hasContentBlocksJunction
+    ? getWritableFieldDefs(fields, ARTICLES_CONTENT_BLOCKS_COLLECTION, ['id'])
+    : [];
   const layoutField = fields.find((f) => f.collection === ARTICLES_COLLECTION && f.field === 'layout');
   const allowedLayouts = (layoutField?.meta?.options?.choices ?? [])
     .map((choice) => choice?.value)
     .filter(Boolean);
+
+  const contentBlocksItemRelation = relations.find(
+    (rel) => rel.collection === ARTICLES_CONTENT_BLOCKS_COLLECTION && rel.field === 'item'
+  );
+  const allowedBlockCollections = contentBlocksItemRelation?.meta?.one_allowed_collections ?? [];
+
+  function getTranslationsConfigForCollection(collectionName) {
+    const rel = relations.find(
+      (r) => r.related_collection === collectionName && r.meta?.one_field === 'translations'
+    );
+    if (!rel) return null;
+    return {
+      collection: rel.collection,
+      foreignField: rel.field,
+      writableFields: getWritableFields(fields, rel.collection, ['id']),
+      writableFieldDefs: getWritableFieldDefs(fields, rel.collection, ['id']),
+    };
+  }
+
+  function getChildConfigForOneField(collectionName, oneField) {
+    const rel = relations.find(
+      (r) => r.related_collection === collectionName && r.meta?.one_field === oneField
+    );
+    if (!rel) return null;
+    const childCollection = rel.collection;
+    return {
+      collection: childCollection,
+      parentField: rel.field,
+      sortField: rel.meta?.sort_field ?? null,
+      writableFields: getWritableFields(fields, childCollection, ['id']),
+      writableFieldDefs: getWritableFieldDefs(fields, childCollection, ['id']),
+      translations: getTranslationsConfigForCollection(childCollection),
+    };
+  }
+
+  const blockSchemas = {};
+  for (const blockCollection of allowedBlockCollections) {
+    const children = {};
+    for (const oneField of BLOCK_CHILD_ONE_FIELDS) {
+      const child = getChildConfigForOneField(blockCollection, oneField);
+      if (child) children[oneField] = child;
+    }
+    blockSchemas[blockCollection] = {
+      collection: blockCollection,
+      writableFields: getWritableFields(fields, blockCollection, ['id']),
+      writableFieldDefs: getWritableFieldDefs(fields, blockCollection, ['id']),
+      translations: getTranslationsConfigForCollection(blockCollection),
+      children,
+    };
+  }
 
   return {
     articleFields,
@@ -241,7 +444,12 @@ async function readSchema() {
     fileAttachmentTranslationFields,
     infoCardFields,
     infoCardTranslationFields,
+    contentBlocksJunctionFields,
+    contentBlocksJunctionFieldDefs,
+    blockSchemas,
+    allowedBlockCollections,
     hasJunction,
+    hasContentBlocksJunction,
     hasFileAttachments,
     hasFileAttachmentTranslations,
     hasInfoCards,
@@ -296,6 +504,37 @@ function collectAdvancedAttachmentPaths(rows) {
   return unique(paths);
 }
 
+function collectLocalPathsFromValue(value, result) {
+  if (Array.isArray(value)) {
+    for (const item of value) collectLocalPathsFromValue(item, result);
+    return;
+  }
+  if (!value || typeof value !== 'object') return;
+
+  for (const [key, raw] of Object.entries(value)) {
+    if (typeof raw === 'string') {
+      const isPathLike = key === 'path' || key.endsWith('_path');
+      const isUrl = /^https?:\/\//i.test(raw);
+      if (isPathLike && !isUrl) result.push(raw);
+    } else if (Array.isArray(raw) && key.endsWith('_paths')) {
+      for (const p of raw) {
+        if (typeof p === 'string' && !/^https?:\/\//i.test(p)) result.push(p);
+      }
+      for (const item of raw) collectLocalPathsFromValue(item, result);
+    } else if (raw && typeof raw === 'object') {
+      collectLocalPathsFromValue(raw, result);
+    }
+  }
+}
+
+function collectContentBlockPaths(rows) {
+  const paths = [];
+  for (const row of rows) {
+    collectLocalPathsFromValue(row.content_blocks ?? [], paths);
+  }
+  return unique(paths);
+}
+
 async function uploadLocalFileToDirectus(rawPath) {
   const absolutePath = await resolveLocalPath(rawPath);
   const fileBuffer = await fs.readFile(absolutePath);
@@ -344,6 +583,7 @@ async function buildLocalPathFileMap(rows) {
   const rawPaths = unique([
     ...collectFeaturedImagePaths(rows),
     ...collectAdvancedAttachmentPaths(rows),
+    ...collectContentBlockPaths(rows),
   ]);
   if (rawPaths.length === 0) return new Map();
 
@@ -500,6 +740,311 @@ async function createAdvancedInfoCards(row, articleId, schema) {
   return created;
 }
 
+function getOrderFieldName(writableFields) {
+  if (writableFields.includes('order')) return 'order';
+  if (writableFields.includes('sort')) return 'sort';
+  return null;
+}
+
+function hasField(fieldDefs, fieldName) {
+  return fieldDefs.some((f) => f.field === fieldName);
+}
+
+function getFieldDef(fieldDefs, fieldName) {
+  return fieldDefs.find((f) => f.field === fieldName) ?? null;
+}
+
+function requireFieldInData(data, fieldName, label) {
+  if (data[fieldName] === undefined || data[fieldName] === null || data[fieldName] === '') {
+    throw new Error(`${label} requires "${fieldName}".`);
+  }
+}
+
+function resolveUploadedFileId(localPathToFileMap, rawPath, contextLabel) {
+  const fileId = localPathToFileMap.get(rawPath);
+  if (!fileId) {
+    throw new Error(`No uploaded file id found for ${contextLabel}: ${rawPath}`);
+  }
+  return fileId;
+}
+
+function normalizeBlockType(type, allowedBlockCollections) {
+  const raw = String(type ?? '').trim();
+  if (!raw) throw new Error('Content block "type" is required.');
+  const matched = allowedBlockCollections.find((x) => x.toLowerCase() === raw.toLowerCase());
+  if (!matched) {
+    throw new Error(
+      `Unknown content block type "${type}". Allowed: ${allowedBlockCollections.join(', ')}`
+    );
+  }
+  return matched;
+}
+
+async function createTranslationRows(config, parentId, translationRows, localPathToFileMap, contextLabel) {
+  if (!config) return 0;
+
+  const rows = Array.isArray(translationRows) ? translationRows : [];
+  if (rows.length === 0) return 0;
+
+  let created = 0;
+  for (const tr of rows) {
+    const payloadObj = { ...tr, [config.foreignField]: parentId };
+
+    if (payloadObj.image_path && hasField(config.writableFieldDefs, 'image')) {
+      payloadObj.image = resolveUploadedFileId(localPathToFileMap, payloadObj.image_path, contextLabel);
+    }
+
+    const payload = pick(payloadObj, config.writableFields);
+    await client.request(createItem(config.collection, payload));
+    created++;
+  }
+  return created;
+}
+
+async function createChildRows(childConfig, parentId, rows, localPathToFileMap, contextLabel) {
+  if (!childConfig) return [];
+
+  const items = Array.isArray(rows) ? rows : [];
+  const created = [];
+  const orderField = getOrderFieldName(childConfig.writableFields);
+
+  for (const [index, row] of items.entries()) {
+    const payloadObj = { ...row, [childConfig.parentField]: parentId };
+
+    if (payloadObj.image_path && hasField(childConfig.writableFieldDefs, 'image')) {
+      payloadObj.image = resolveUploadedFileId(localPathToFileMap, payloadObj.image_path, contextLabel);
+    }
+    if (payloadObj.directus_files_path && hasField(childConfig.writableFieldDefs, 'directus_files_id')) {
+      payloadObj.directus_files_id = resolveUploadedFileId(
+        localPathToFileMap,
+        payloadObj.directus_files_path,
+        contextLabel
+      );
+    }
+    if (payloadObj.file_path && hasField(childConfig.writableFieldDefs, 'directus_files_id')) {
+      payloadObj.directus_files_id = resolveUploadedFileId(localPathToFileMap, payloadObj.file_path, contextLabel);
+    }
+    if (orderField && payloadObj[orderField] === undefined) {
+      payloadObj[orderField] = index + 1;
+    }
+
+    const payload = pick(payloadObj, childConfig.writableFields);
+    const item = await client.request(createItem(childConfig.collection, payload));
+    const itemId = item?.id ?? item?.data?.id;
+    if (itemId == null) {
+      throw new Error(`Failed to create child row in "${childConfig.collection}".`);
+    }
+
+    let trCount = 0;
+    if (childConfig.translations) {
+      trCount = await createTranslationRows(
+        childConfig.translations,
+        itemId,
+        row.translations,
+        localPathToFileMap,
+        `${contextLabel} child translations`
+      );
+    }
+
+    created.push({ id: itemId, translations: trCount });
+  }
+
+  return created;
+}
+
+async function createBlockEntity(blockInput, context) {
+  const {
+    schema,
+    localPathToFileMap,
+  } = context;
+
+  const blockType = normalizeBlockType(blockInput.type, schema.allowedBlockCollections);
+  const blockSchema = schema.blockSchemas[blockType];
+  if (!blockSchema) {
+    throw new Error(`No schema config found for block type "${blockType}".`);
+  }
+
+  const data = { ...(blockInput.data ?? {}) };
+
+  if (blockType === 'block_code') {
+    requireFieldInData(data, 'code', blockType);
+    requireFieldInData(data, 'language', blockType);
+    requireFieldInData(data, 'theme', blockType);
+  }
+  if (blockType === 'block_button') {
+    requireFieldInData(data, 'link', blockType);
+  }
+  if (blockType === 'block_video' && data.video_file_path) {
+    data.video_file = resolveUploadedFileId(localPathToFileMap, data.video_file_path, `${blockType}.video_file_path`);
+  }
+  if (blockType === 'block_audio' && (data.audio_file_path || data.audio_path)) {
+    const rawPath = data.audio_file_path ?? data.audio_path;
+    data.audio = resolveUploadedFileId(localPathToFileMap, rawPath, `${blockType}.audio_path`);
+  }
+  if (blockType === 'block_embed' && !data.url && !data.code) {
+    throw new Error('block_embed requires at least one of "url" or "code".');
+  }
+
+  const blockPayload = pick(data, blockSchema.writableFields);
+  const blockItem = await client.request(createItem(blockType, blockPayload));
+  const blockId = blockItem?.id ?? blockItem?.data?.id;
+  if (!blockId) {
+    throw new Error(`Failed to create content block item for "${blockType}".`);
+  }
+
+  // Translation-enabled block types that need content to be useful.
+  const requiredTranslationFieldByType = {
+    block_title: 'title',
+    block_richtext: 'content',
+    block_image: 'image',
+    block_accordions: null,
+    block_gallery: null,
+    block_alert: null,
+    block_divider: null,
+  };
+
+  const translations = Array.isArray(blockInput.translations) ? blockInput.translations : [];
+  const requiredTranslationField = requiredTranslationFieldByType[blockType];
+
+  if (requiredTranslationField && translations.length === 0 && blockSchema.translations) {
+    throw new Error(`${blockType} requires "translations".`);
+  }
+  if (requiredTranslationField && blockSchema.translations) {
+    for (const tr of translations) {
+      if (requiredTranslationField === 'image') {
+        const hasImage = tr.image || tr.image_path;
+        if (!hasImage) throw new Error(`${blockType} translation requires "image" or "image_path".`);
+      } else if (!tr?.[requiredTranslationField]) {
+        throw new Error(`${blockType} translation requires "${requiredTranslationField}".`);
+      }
+    }
+  }
+
+  const translationCount = await createTranslationRows(
+    blockSchema.translations,
+    blockId,
+    translations,
+    localPathToFileMap,
+    `${blockType}.translations`
+  );
+
+  const children = {};
+
+  if (blockType === 'block_gallery') {
+    const uploadHereCfg = blockSchema.children.upload_here;
+    const galleryItemsCfg = blockSchema.children.gallery_items;
+
+    const uploadRows = (blockInput.upload_files_paths ?? []).map((p) => ({
+      directus_files_path: p,
+    }));
+    children.upload_here = await createChildRows(
+      uploadHereCfg,
+      blockId,
+      uploadRows,
+      localPathToFileMap,
+      `${blockType}.upload_here`
+    );
+    children.gallery_items = await createChildRows(
+      galleryItemsCfg,
+      blockId,
+      blockInput.gallery_items,
+      localPathToFileMap,
+      `${blockType}.gallery_items`
+    );
+  } else if (blockType === 'block_accordions') {
+    children.accordions = await createChildRows(
+      blockSchema.children.accordions,
+      blockId,
+      blockInput.accordions,
+      localPathToFileMap,
+      `${blockType}.accordions`
+    );
+  } else if (blockType === 'block_social_media_links') {
+    children.social_media_links = await createChildRows(
+      blockSchema.children.social_media_links,
+      blockId,
+      blockInput.social_media_links,
+      localPathToFileMap,
+      `${blockType}.social_media_links`
+    );
+  } else if (blockType === 'block_group') {
+    const groupContentCfg = blockSchema.children.content_blocks;
+    children.content_blocks = await createBlocksForParent(
+      blockInput.content_blocks,
+      blockId,
+      groupContentCfg,
+      context
+    );
+  }
+
+  return {
+    type: blockType,
+    id: blockId,
+    translations: translationCount,
+    children,
+  };
+}
+
+async function linkBlockToParent(parentId, junctionConfig, blockEntity, orderValue, hideOnDevices) {
+  if (!junctionConfig) return;
+
+  const payloadObj = {
+    [junctionConfig.parentField]: parentId,
+    collection: blockEntity.type,
+    item: blockEntity.id,
+  };
+  const orderField = getOrderFieldName(junctionConfig.writableFields);
+  if (orderField) payloadObj[orderField] = orderValue;
+  if (hideOnDevices !== undefined && junctionConfig.writableFields.includes('hide_on_devices')) {
+    payloadObj.hide_on_devices = hideOnDevices;
+  }
+
+  const payload = pick(payloadObj, junctionConfig.writableFields);
+  await client.request(createItem(junctionConfig.collection, payload));
+}
+
+async function createBlocksForParent(blocksInput, parentId, junctionConfig, context) {
+  const blocks = Array.isArray(blocksInput) ? blocksInput : [];
+  const created = [];
+
+  for (const [index, blockInput] of blocks.entries()) {
+    const blockEntity = await createBlockEntity(blockInput, context);
+    const orderValue = blockInput.order ?? blockInput.sort ?? index + 1;
+    await linkBlockToParent(
+      parentId,
+      junctionConfig,
+      blockEntity,
+      orderValue,
+      blockInput.hide_on_devices
+    );
+    created.push({
+      type: blockEntity.type,
+      id: blockEntity.id,
+      order: orderValue,
+      translations: blockEntity.translations,
+      children: blockEntity.children,
+    });
+  }
+
+  return created;
+}
+
+async function createArticleContentBlocks(row, articleId, schema, localPathToFileMap) {
+  if (!schema.hasContentBlocksJunction) return [];
+
+  const junctionConfig = {
+    collection: ARTICLES_CONTENT_BLOCKS_COLLECTION,
+    parentField: 'articles_id',
+    writableFields: schema.contentBlocksJunctionFields,
+    writableFieldDefs: schema.contentBlocksJunctionFieldDefs,
+  };
+
+  return createBlocksForParent(row.content_blocks, articleId, junctionConfig, {
+    schema,
+    localPathToFileMap,
+  });
+}
+
 function collectAttachmentIds(rows) {
   const ids = [];
   for (const row of rows) {
@@ -571,6 +1116,10 @@ async function main() {
   }
   if (schema.hasInfoCards) {
     console.log(`Advanced info cards: ${INFO_CARDS_COLLECTION}`);
+  }
+  if (schema.hasContentBlocksJunction) {
+    console.log(`Content blocks junction: ${ARTICLES_CONTENT_BLOCKS_COLLECTION}`);
+    console.log(`Allowed block collections: ${schema.allowedBlockCollections.join(', ')}`);
   }
   console.log('');
 
@@ -659,6 +1208,12 @@ async function main() {
       localPathToFileMap
     );
     const infoCardRows = await createAdvancedInfoCards(row, articleId, schema);
+    const contentBlockRows = await createArticleContentBlocks(
+      row,
+      articleId,
+      schema,
+      localPathToFileMap
+    );
 
     const label = writtenTranslations[0]?.title ?? articleId;
     console.log(`Created article: ${label} (${articleId})`);
@@ -673,6 +1228,7 @@ async function main() {
       categories: categoryIds,
       attachments: attachmentRows,
       info_cards: infoCardRows,
+      content_blocks: contentBlockRows,
     });
   }
 
