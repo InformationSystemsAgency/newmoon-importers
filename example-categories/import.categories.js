@@ -21,7 +21,7 @@ const EXAMPLE_CATEGORIES_WITH_SUBCATEGORIES = [
     {
       title: { en: 'News', hy: 'Նորություններ' },
       subcategories: [
-        { title: { en: 'Press Releases', hy: 'Մամլոյան հաղորդագրություններ' } },
+        { title: { en: 'Press Releases', hy: 'Մամլո հաղորդագրություններ' } },
         { title: { en: 'Announcements', hy: 'Հայտարարություններ' } },
       ],
     },
