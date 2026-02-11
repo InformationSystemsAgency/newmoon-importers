@@ -1,0 +1,21 @@
+{
+  "name": "directus-import-ainemra",
+  "version": "1.0.0",
+  "description": "Import children's rights recommendations into Directus from CSV files",
+  "type": "module",
+  "keywords": [
+    "directus",
+    "import",
+    "csv",
+    "children-rights",
+    "armenia"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@directus/sdk": "^17.0.2",
+    "csv-parse": "^5.5.6",
+    "dotenv": "^16.4.5",
+    "xlsx": "^0.18.5"
+  }
+}
