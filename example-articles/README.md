@@ -12,7 +12,7 @@ Example scripts to **import** and **remove** **articles** in NewMoon's [Directus
 
 | Script | Description |
 |--------|-------------|
-| `import.articles.js` | Creates articles from `EXAMPLE_ARTICLES`, uploads local files, creates translations/categories/advanced extras/content blocks, and writes IDs to `imports/articles.imported.{timestamp}.json`. |
+| `import.articles.js` | Creates articles from `EXAMPLE_ARTICLES`, uploads local files, creates translations/categories/advanced extras/content blocks, and writes IDs to `import-logs/articles.imported.{timestamp}.json`. |
 | `remove.articles.js` | Deletes all articles listed in an imported JSON file and cleans known link collections first. |
 
 ## Prerequisites
@@ -45,7 +45,7 @@ node example-articles/import.articles.js
 Remove by snapshot file:
 
 ```bash
-node example-articles/remove.articles.js example-articles/imports/articles.imported.260211193352.json
+node example-articles/remove.articles.js example-articles/import-logs/articles.imported.260211193352.json
 ```
 
 ## Data shape (`EXAMPLE_ARTICLES`)

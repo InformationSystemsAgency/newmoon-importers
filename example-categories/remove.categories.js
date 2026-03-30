@@ -2,14 +2,14 @@
  * Remove categories from Directus using an imported categories JSON file.
  *
  * Uses DIRECTUS_URL and DIRECTUS_IMPORTER_TOKEN from .env.
- * Reads a categories.imported.{timestamp}.json file (from import.categories.js) and deletes
+ * Reads a categories.imported.{timestamp}.json file (from from-csv/run.js and siblings) and deletes
  * all categories and their translations listed in it (subcategories first, then parents).
  *
  * Usage:
  *   node example-categories/remove.categories.js <path-to-imported-json>
  *
  * Example:
- *   node example-categories/remove.categories.js example-categories/imports/categories.imported.250211143052.json
+ *   node example-categories/remove.categories.js example-categories/import-logs/categories.imported.250211143052.json
  */
 
 import { createDirectus, rest, staticToken, deleteItem } from '@directus/sdk';
@@ -44,25 +44,42 @@ const CATEGORIES_COLLECTION = 'categories';
 const CATEGORIES_TRANSLATIONS_COLLECTION = 'categories_translations';
 
 /**
- * Collect category IDs from imported JSON in delete order: subcategory IDs first, then parent IDs.
+ * Post-order walk for nested snapshot files (legacy tree shape with subcategories).
+ */
+function collectIdsPostOrder(node, out) {
+  for (const sub of node.subcategories ?? []) {
+    collectIdsPostOrder(sub, out);
+  }
+  if (node.id) out.push(node.id);
+}
+
+/**
+ * @param {object[]} imported
  */
 function getIdsToDelete(imported) {
-  const subIds = [];
-  const parentIds = [];
-  for (const parent of imported) {
-    for (const sub of parent.subcategories ?? []) {
-      if (sub.id) subIds.push(sub.id);
+  const first = imported[0];
+  const nested =
+    first &&
+    Object.prototype.hasOwnProperty.call(first, 'subcategories') &&
+    !Object.prototype.hasOwnProperty.call(first, 'parent_index');
+
+  if (nested) {
+    const ids = [];
+    for (const root of imported) {
+      collectIdsPostOrder(root, ids);
     }
-    if (parent.id) parentIds.push(parent.id);
+    return ids;
   }
-  return [...subIds, ...parentIds];
+
+  // Flat snapshot: parent index always lower than child index → delete from end to start
+  return imported.map((r) => r.id).filter(Boolean).reverse();
 }
 
 async function main() {
   const fileArg = process.argv[2];
   if (!fileArg) {
     console.error('❌ Pass the path to the imported categories JSON file.');
-    console.error('   Example: node remove.categories.js imports/categories.imported.250211143052.json');
+    console.error('   Example: node remove.categories.js import-logs/categories.imported.250211143052.json');
     process.exit(1);
   }
 
@@ -99,12 +116,22 @@ async function main() {
   console.log(`\n🎉 Done. Deleted ${deleted} category item(s).`);
 }
 
+function findTitleInNode(node, id) {
+  if (node.id === id) return Object.values(node.title ?? {})[0] ?? id;
+  for (const sub of node.subcategories ?? []) {
+    const found = findTitleInNode(sub, id);
+    if (found !== null) return found;
+  }
+  return null;
+}
+
 function findTitle(imported, id) {
-  for (const parent of imported) {
-    if (parent.id === id) return Object.values(parent.title ?? {})[0] ?? id;
-    for (const sub of parent.subcategories ?? []) {
-      if (sub.id === id) return Object.values(sub.title ?? {})[0] ?? id;
-    }
+  for (const row of imported) {
+    if (row.id === id) return Object.values(row.title ?? {})[0] ?? id;
+  }
+  for (const root of imported) {
+    const found = findTitleInNode(root, id);
+    if (found !== null) return found;
   }
   return id;
 }

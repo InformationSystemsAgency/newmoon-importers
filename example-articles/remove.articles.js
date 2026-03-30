@@ -10,7 +10,7 @@
  *   node example-articles/remove.articles.js <path-to-imported-json>
  *
  * Example:
- *   node example-articles/remove.articles.js example-articles/imports/articles.imported.260211172255.json
+ *   node example-articles/remove.articles.js example-articles/import-logs/articles.imported.260211172255.json
  */
 
 import {
@@ -101,7 +101,7 @@ async function main() {
   const fileArg = process.argv[2];
   if (!fileArg) {
     console.error('Pass the path to the imported articles JSON file.');
-    console.error('Example: node remove.articles.js imports/articles.imported.260211172255.json');
+    console.error('Example: node remove.articles.js import-logs/articles.imported.260211172255.json');
     process.exit(1);
   }
 

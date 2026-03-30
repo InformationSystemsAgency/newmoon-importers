@@ -6,7 +6,7 @@
  * 2) creates articles in "articles"
  * 3) creates translations in "articles_translations"
  * 4) optionally links categories through "articles_categories"
- * 5) writes created IDs to imports/articles.imported.{timestamp}.json
+ * 5) writes created IDs to import-logs/articles.imported.{timestamp}.json
  *
  * Run from project root:
  *   node example-articles/import.articles.js
@@ -1233,7 +1233,7 @@ async function main() {
   }
 
   const timestamp = getShortTimestamp();
-  const outDir = path.resolve(__dirname, 'imports');
+  const outDir = path.resolve(__dirname, 'import-logs');
   await fs.mkdir(outDir, { recursive: true });
   const outPath = path.join(outDir, `articles.imported.${timestamp}.json`);
   await fs.writeFile(outPath, JSON.stringify(imported, null, 2), 'utf8');

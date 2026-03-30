@@ -2,146 +2,107 @@
 
 Example scripts to **import** and **remove** **categories** (with optional **subcategories**) in NewMoon's [Directus](https://directus.io) via the REST API and a static token.
 
+The importer follows **batched ETL** via **`etlPipe`** (`utils/etl/pipe.js`): **`stages.batchSize`** → **`context.batchSize`**; **`extract`** returns an iterable. When a yield is an **array of plain objects**, the pipe **`map`s** **`transform(item, ctx)`** per element; otherwise **`transform(payload, ctx)`** runs once (CSV and JSON yields use **`{ rows }`** / **`{ sections }`** so one transform builds load input per batch). Each pipeline’s **`load`** only performs inserts + snapshot — no column remapping beyond transform.
+
 ## Scripts
 
 | Script | Description |
 |--------|-------------|
-| `import.categories.js` | Creates categories from `EXAMPLE_CATEGORIES_WITH_SUBCATEGORIES` and writes IDs and titles to `imports/categories.imported.{timestamp}.json` in this folder. Timestamp format: `YYMMDDHMS`. |
-| `remove.categories.js` | Deletes all categories listed in a given imported JSON file. Pass the file path as the first argument. |
+| `from-csv/run.js` | Streamed CSV, **flat** rows batched by **`batchSize`**. `data/categories.etl.csv`. |
+| `from-stream/run.js` | Same batched streaming CSV pipeline (separate folder / entry). |
+| `from-json/run.js` | Aliased JSON section batches → transform → load. `data/categories.etl.aliased.json`. |
+| `remove.categories.js` | Deletes categories from a snapshot file. Pass the file path as the first argument. |
+
+All imports write `import-logs/categories.imported.{timestamp}.json`.
+
+## ETL layout (per source)
+
+Each source has **`01-extract.js`**, **`02-transform.js`**, **`03-load.js`**, and **`run.js`**.
+
+| Pipeline | Extract | Transform | Load | Runner |
+|----------|---------|-----------|------|--------|
+| **from-csv** | `from-csv/01-extract.js` — **`extract`** yields **`{ rows }`**. | `from-csv/02-transform.js` — **`transform`**: **`{ rows }`** → **`{ title }`** per row. | `from-csv/03-load.js` — **`createItems`** for categories then translations (chunked by **`ctx.batchSize`**). | `from-csv/run.js` |
+| **from-stream** | `from-stream/01-extract.js` — same pattern as CSV. | `from-stream/02-transform.js` | `from-stream/03-load.js` — same **`load`**. | `from-stream/run.js` |
+| **from-json** | `from-json/01-extract.js` — **`extract`** yields **`{ sections }`**. | `from-json/02-transform.js` — **`transform`**: aliased blocks → **flat** `{ title, parent_index }[]` per batch; **`aliasedCatalogJsonToCanonical`**, **`aliasedSectionToCanonicalFlat`**. | `from-json/03-load.js` — same **`load`**. | `from-json/run.js` |
+
+Shared:
+
+| Item | Location |
+|------|----------|
+| Canonical model (JSDoc) | `etl/canonical.js` |
+| Pipe | `../utils/etl/pipe.js` — **`etlPipe`** |
+| Env / schema helpers | `utils/parse.env.js`, `utils/category.utils.js` |
+
+### Sample data files
+
+- `data/categories.etl.csv` — used by **from-csv** and **from-stream**.
+- `data/categories.etl.aliased.json` — used by **from-json** (different property names than Directus).
 
 ## Prerequisites
 
-- Directus with a **categories** collection and **categories_translations** (translations interface).
-- **categories**: `parent_category` (M2O to self).
+- Directus with **categories** and **categories_translations**.
+- **categories**: `parent_category` (M2O self).
 - **categories_translations**: `categories_id`, `languages_code`, `title`.
 
 ## Environment variables
-
-In the project root or in this folder, create a `.env` file:
 
 ```env
 DIRECTUS_URL=http://localhost:8055
 DIRECTUS_IMPORTER_TOKEN=your_static_token_here
 ```
 
-- **Import**: token must have **create** on `categories` and `categories_translations`.
-- **Remove**: token must have **delete** on `categories`. You can copy from the project root `.env.example`.
-
 ## How to run
 
 ### Import
 
-From the **project root**:
-
 ```bash
-node example-categories/import.categories.js
+node example-categories/from-csv/run.js
+node example-categories/from-stream/run.js
+node example-categories/from-json/run.js
 ```
-
-From **this folder** (`example-categories`):
-
-```bash
-node import.categories.js
-```
-
-When the import finishes, it writes a file to **this folder** at `imports/categories.imported.YYMMDDHMS.json` (e.g. `imports/categories.imported.250211143052.json`). Use that path with the remove script.
 
 ### Remove
 
-Pass the path to one of the imported JSON files.
-
-From the **project root**:
-
 ```bash
-node example-categories/remove.categories.js example-categories/imports/categories.imported.250211143052.json
+node example-categories/remove.categories.js example-categories/import-logs/categories.imported.250211143052.json
 ```
 
-From **this folder**:
+## CSV format (`data/categories.etl.csv`)
 
-```bash
-node remove.categories.js imports/categories.imported.250211143052.json
-```
+Two columns — **no hierarchy** in the file:
 
-Remove deletes subcategories first, then parents. If you run it without a file path, it prints an error and usage.
+`en,hy`
 
-## What the import does
+**`transform`** maps each row’s **`en` / `hy`** (or **`title_en` / `title_hy`**) into the **`title: { en, hy }`** shape **`load`** expects. Each row is one category.
 
-1. Loads `DIRECTUS_URL` and `DIRECTUS_IMPORTER_TOKEN` from `.env`.
-2. Fetches the Directus schema for `categories` and `categories_translations`.
-3. For each item in `EXAMPLE_CATEGORIES_WITH_SUBCATEGORIES`:
-   - Creates the **parent** category and its translations.
-   - For each **subcategory**, creates a category with `parent_category` set to the parent id and creates its translations.
-4. Writes IDs and titles to `imports/categories.imported.{timestamp}.json` in this folder.
+## Aliased JSON format (`data/categories.etl.aliased.json`)
 
-Example output:
+The file is a **JSON array** (root level). Each element is one root block (not Directus shape):
 
-```
-📡 Reading schema from Directus...
+- `section_title.locale_en` / `section_title.locale_hy` — titles for that node.
+- `subsections[]` — each entry is either:
+  - a **leaf:** `{ "locale_en", "locale_hy" }`, or
+  - a **nested branch:** same shape as the root (`section_title` + `subsections`) for deeper levels.
 
-✅ Collection: categories
-   Fields: parent_category, ...
-   Translations: categories_translations (categories_id, languages_code, title)
+Transform maps these to nested `{ title, subcategories? }` (any depth).
 
-   ✅ Created: News (id: ...)
-      └ sub: Press Releases (id: ...)
-      └ sub: Announcements (id: ...)
-   ...
+Legacy: a single object `{ "catalog_sections": [ ... ] }` is still accepted.
 
-🎉 Done. Created 9 category item(s).
-   Wrote IDs and titles to categories.imported.250211143052.json
-```
+## Canonical shape (after Transform)
 
-## Data shape and examples
+What **Load** expects:
 
-The import reads the array `EXAMPLE_CATEGORIES_WITH_SUBCATEGORIES` in `import.categories.js`:
-
-| Field           | Type   | Required | Description |
-|-----------------|--------|----------|-------------|
-| `title`         | object | yes      | `{ en: 'Title', hy: 'Վերնագիր' }` — one key per language. |
-| `subcategories` | array  | no       | Child categories (same shape; this example uses one level only). |
-
-### Flat list (no subcategories)
-
-```javascript
-const EXAMPLE_CATEGORIES_WITH_SUBCATEGORIES = [
-  { title: { en: 'News', hy: 'Նորություններ' } },
-  { title: { en: 'Events', hy: 'Իրադարձություններ' } },
-  { title: { en: 'Documents', hy: 'Փաստաթղթեր' } },
-];
-```
-
-### Parents with subcategories
-
-```javascript
-const EXAMPLE_CATEGORIES_WITH_SUBCATEGORIES = [
-  {
-    title: { en: 'News', hy: 'Նորություններ' },
-    subcategories: [
-      { title: { en: 'Press Releases', hy: 'Մամլոյան հաղորդագրություններ' } },
-      { title: { en: 'Announcements', hy: 'Հայտարարություններ' } },
-    ],
-  },
-  {
-    title: { en: 'Events', hy: 'Իրադարձություններ' },
-    subcategories: [
-      { title: { en: 'Conferences', hy: 'Կոնֆերանսներ' } },
-      { title: { en: 'Workshops', hy: 'Աշխատանքային հանդիպումներ' } },
-    ],
-  },
-];
-```
-
-### Single language
-
-```javascript
-{ title: { en: 'News' } }
-```
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `title` | object | yes | `{ en, hy, ... }` per language code. |
+| `subcategories` | array | no | Same node shape recursively (tree depth depends on source). |
 
 ## Customizing
 
-1. **Change the data**: Edit `EXAMPLE_CATEGORIES_WITH_SUBCATEGORIES` in `import.categories.js` (add/remove items or subcategories).
-2. **Different collection names**: Update `CATEGORIES_COLLECTION` and `CATEGORIES_TRANSLATIONS_COLLECTION` in both scripts; the import still reads the schema from Directus.
-3. **Re-running import**: The import always creates new items. To clean up, run the remove script with the path to the relevant `categories.imported.*.json` file, or add your own upsert logic.
+1. Replace or extend files under `data/`, or change paths inside `from-csv/01-extract.js`, `from-stream/01-extract.js`, or `from-json/01-extract.js`. Tune chunking via **`stages.batchSize`** in each **`run.js`**.
+2. Add a new folder under `example-categories/` with the same `01-extract.js`, `02-transform.js`, `03-load.js`, and `run.js` pattern; reuse `../utils/etl/pipe.js` and match the canonical shape if you want to copy an existing `03-load.js`.
+3. Re-run import creates new rows; use `remove.categories.js` with the latest snapshot to clean up.
 
 ## Dependencies
 
-Uses `@directus/sdk` and `dotenv` from the project root. The import script also uses `utils/timestamp.js` for the output filename. No extra install is needed in this folder when running from the project root.
+Uses `@directus/sdk`, `dotenv`, and `csv-parse` from the project root, plus `utils/timestamp.js`.
