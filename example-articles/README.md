@@ -1,4 +1,5 @@
-# Example articles importer (Directus)
+# Example articles importer (NewMoon, Directus)
+
 
 Scripts that create **one article** in NewMoon's Directus (translations, featured image, optional advanced extras, content blocks), write a **JSON snapshot** under `import-logs/`, and optionally **remove** articles from that snapshot.
 

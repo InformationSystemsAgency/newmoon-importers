@@ -1,7 +1,5 @@
 # NewMoon Importers
 
-English | **[Հայերեն](README.hy.md)**
-
 Node.js scripts for importing structured content into Directus of NewMoon CMS.
 
 This repository currently contains a working importer for **articles** (`example-articles/`).
