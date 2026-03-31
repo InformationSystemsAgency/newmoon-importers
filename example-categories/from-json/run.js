@@ -1,7 +1,7 @@
 /**
- * Import categories from aliased JSON (`../data/categories.etl.aliased.json`) in **batches**.
+ * Import categories from CSV (`../data/categories.etl.csv`) in **batches**.
  *
- *   node example-categories/from-json/run.js
+ *   node example-categories/from-csv/run.js
  */
 
 import { createDirectus, rest, staticToken } from '@directus/sdk';
@@ -22,9 +22,9 @@ const { directusUrl, directusToken } = parseEnv(exampleRoot);
 const client = createDirectus(directusUrl).with(staticToken(directusToken)).with(rest());
 
 async function main() {
-  console.log('📥 Extract: aliased JSON (section batches)\n');
-  console.log('📡 Reading schema from Directus...\n');
+  console.log('📥 Extract: streamed JSON (batched)\n');
 
+  console.log('📡 Reading schema from Directus...\n');
   const schema = await getCategoriesSchema(client);
 
   console.log(`✅ Collection: ${schema.collection}`);
@@ -41,7 +41,7 @@ async function main() {
   try {
     results = await etlPipe(
       {
-        batchSize: 25,
+        batchSize: 2,
         extract,
         transform,
         load,
@@ -54,7 +54,7 @@ async function main() {
   }
 
   if (results.length === 0) {
-    console.log('\nNothing to import (empty JSON).');
+    console.log('\nNothing to import (empty or no valid rows).');
     return;
   }
 

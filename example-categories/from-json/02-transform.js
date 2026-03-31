@@ -1,85 +1,128 @@
 /**
- * Transform: aliased JSON → **flat rows** for **`load`**: `{ title, parent_index }`
- * (`parent_index` = index of parent within the same batch, or `null` for roots).
+ * Transform: trees → nested **`{ translations, children? }`** per root (same idea as extract sections).
+ *
+ * **Input** (each section root):
+ * - **`{ category: { translations }, subcategories? }`** or **`{ translations, subcategories? | children? }`**
+ * - Aliased: **`{ section_title: { locale_en, locale_hy }, subsections? }`**
  */
 
 /**
- * @param {{ title: Record<string, string>, subcategories?: unknown[] }} node
- * @returns {Array<{ title: Record<string, string>, parent_index: number | null }>}
+ * @typedef {object} CategoryNestedNode
+ * @property {Array<{ languages_code: string, title: string }>} translations
+ * @property {CategoryNestedNode[]} [children]
  */
-function flattenCanonicalTree(node) {
-  /** @type {Array<{ title: Record<string, string>, parent_index: number | null }>} */
-  const rows = [];
-  function walk(n, parentIdx) {
-    const idx = rows.length;
-    rows.push({
-      title: n.title,
-      parent_index: parentIdx,
-    });
-    for (const sub of n.subcategories ?? []) {
-      walk(sub, idx);
-    }
+
+/**
+ * @param {unknown} t
+ * @returns {{ languages_code: string, title: string }}
+ */
+function normTranslation(t) {
+  if (!t || typeof t !== 'object') {
+    throw new Error('Category transform: each translation must be an object');
   }
-  walk(node, null);
-  return rows;
+  return {
+    languages_code: String(t.languages_code ?? '').trim(),
+    title: String(t.title ?? '').trim(),
+  };
 }
 
 /**
- * @param {unknown} block
- * @returns {{ title: Record<string, string>, subcategories?: unknown[] }}
+ * @param {Array<{ languages_code: string, title: string }>} translations
  */
-function aliasedBlockToCanonical(block) {
-  if (!block || typeof block !== 'object') {
-    throw new Error('Aliased JSON transform: invalid block');
-  }
-  const st = block.section_title;
-  if (!st || typeof st !== 'object') {
-    throw new Error('Aliased JSON transform: section_title missing');
-  }
-  const title = {
-    en: String(st.locale_en ?? '').trim(),
-    hy: String(st.locale_hy ?? '').trim(),
-  };
-  const subs = Array.isArray(block.subsections) ? block.subsections : [];
-  const subcategories = subs.map((sub, j) => aliasedSubNodeToCanonical(sub, j));
-  const node = { title };
-  if (subcategories.length > 0) node.subcategories = subcategories;
-  return node;
+function nonEmptyTranslations(translations) {
+  return translations.filter((t) => t.languages_code && t.title);
 }
 
 /**
  * @param {unknown} sub
- * @param {number} j
+ * @param {number} i
+ * @returns {{ translations: Array<{ languages_code: string, title: string }>, subs: unknown[] }}
  */
-function aliasedSubNodeToCanonical(sub, j) {
-  if (!sub || typeof sub !== 'object') {
-    throw new Error(`Aliased JSON transform: invalid subsection at ${j}`);
+function aliasedSubToInternal(sub, i) {
+  if (!sub || typeof sub !== 'object' || Array.isArray(sub)) {
+    throw new Error(`Category transform: subsections[${i}] invalid`);
   }
   if (sub.section_title != null && typeof sub.section_title === 'object') {
-    return aliasedBlockToCanonical(sub);
+    return normalizeNode(sub);
   }
-  return {
-    title: {
-      en: String(sub.locale_en ?? '').trim(),
-      hy: String(sub.locale_hy ?? '').trim(),
-    },
-  };
+  const translations = nonEmptyTranslations([
+    normTranslation({ languages_code: 'en', title: sub.locale_en }),
+    normTranslation({ languages_code: 'hy', title: sub.locale_hy }),
+  ]);
+  return { translations, subs: [] };
 }
 
 /**
- * @param {unknown} section
- * @param {object} _ctx
- * @returns {Array<{ title: Record<string, string>, parent_index: number | null }>}
+ * @param {unknown} node
+ * @returns {{ translations: Array<{ languages_code: string, title: string }>, subs: unknown[] }}
  */
-export function aliasedSectionToCanonicalFlat(section, _ctx) {
-  const tree = aliasedBlockToCanonical(section);
-  return flattenCanonicalTree(tree);
+function normalizeNode(node) {
+  if (!node || typeof node !== 'object' || Array.isArray(node)) {
+    throw new Error('Category transform: expected an object node');
+  }
+
+  if (node.section_title != null && typeof node.section_title === 'object') {
+    const st = node.section_title;
+    const translations = nonEmptyTranslations([
+      normTranslation({ languages_code: 'en', title: st.locale_en }),
+      normTranslation({ languages_code: 'hy', title: st.locale_hy }),
+    ]);
+    const subs = Array.isArray(node.subsections)
+      ? node.subsections.map((sub, j) => aliasedSubToInternal(sub, j))
+      : [];
+    return { translations, subs };
+  }
+
+  const raw = node.category?.translations ?? node.translations;
+  if (!Array.isArray(raw)) {
+    throw new Error(
+      'Category transform: expected `category.translations`, top-level `translations`, or aliased `section_title`',
+    );
+  }
+  const translations = nonEmptyTranslations(raw.map(normTranslation));
+  const subRoots = Array.isArray(node.subcategories)
+    ? node.subcategories
+    : Array.isArray(node.children)
+      ? node.children
+      : [];
+  const subs = subRoots.map((child, j) => {
+    try {
+      return normalizeNode(child);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new Error(`Category transform: subcategories[${j}]: ${msg}`);
+    }
+  });
+  return { translations, subs };
+}
+
+/**
+ * @param {{ translations: Array<{ languages_code: string, title: string }>, subs: unknown[] }} internal
+ * @returns {CategoryNestedNode}
+ */
+function internalToNested(internal) {
+  if (internal.translations.length === 0) {
+    throw new Error('Category transform: translations array must not be empty');
+  }
+  const children = internal.subs.map((sub) => internalToNested(sub));
+  /** @type {CategoryNestedNode} */
+  const out = { translations: internal.translations };
+  if (children.length > 0) out.children = children;
+  return out;
+}
+
+/**
+ * @param {unknown} root
+ * @returns {CategoryNestedNode}
+ */
+export function categoryRootToNested(root) {
+  return internalToNested(normalizeNode(root));
 }
 
 /**
  * @param {{ sections: unknown[] }} batch
  * @param {object} _ctx
- * @returns {Array<{ title: Record<string, string>, parent_index: number | null }>}
+ * @returns {CategoryNestedNode[]}
  */
 export function transform(batch, _ctx) {
   const sections = batch?.sections;
@@ -87,31 +130,24 @@ export function transform(batch, _ctx) {
     throw new Error('transform: expected batch.sections to be an array');
   }
 
-  /** @type {Array<{ title: Record<string, string>, parent_index: number | null }>} */
-  const all = [];
+  /** @type {CategoryNestedNode[]} */
+  const out = [];
   for (let s = 0; s < sections.length; s++) {
     try {
-      const tree = aliasedBlockToCanonical(sections[s]);
-      const base = all.length;
-      const local = flattenCanonicalTree(tree);
-      for (const r of local) {
-        all.push({
-          title: r.title,
-          parent_index: r.parent_index == null ? null : r.parent_index + base,
-        });
-      }
+      out.push(categoryRootToNested(sections[s]));
     } catch (e) {
-      throw new Error(`Aliased JSON transform: section at index ${s}: ${e.message}`);
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new Error(`Category transform: sections[${s}]: ${msg}`);
     }
   }
-  return all;
+  return out;
 }
 
 /**
- * @param {unknown} raw
- * @returns {Array<{ title: Record<string, string>, parent_index: number | null }>}
+ * @param {unknown} raw — root array of section trees, or **`{ catalog_sections: [...] }`**
+ * @returns {CategoryNestedNode[]}
  */
-export function aliasedCatalogJsonToCanonical(raw) {
+export function catalogJsonToNestedTrees(raw) {
   const sections = Array.isArray(raw)
     ? raw
     : raw && typeof raw === 'object' && Array.isArray(raw.catalog_sections)
@@ -120,7 +156,7 @@ export function aliasedCatalogJsonToCanonical(raw) {
 
   if (!sections) {
     throw new Error(
-      'Aliased JSON transform: expected a root array of sections, or { catalog_sections: [...] }',
+      'Category transform: expected a root array of category trees, or { catalog_sections: [...] }',
     );
   }
 
