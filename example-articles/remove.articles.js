@@ -2,7 +2,7 @@
  * Remove articles from Directus using an imported articles JSON file.
  *
  * Uses DIRECTUS_URL and DIRECTUS_IMPORTER_TOKEN from .env.
- * Reads an articles.imported.{timestamp}.json file (from import.articles.js) and deletes
+ * Reads a snapshot JSON array (from `writeImportLog` / import scripts) and deletes
  * all listed articles. Before deleting each article, it tries to remove rows from known
  * link/junction collections that reference the article.
  *
@@ -10,7 +10,7 @@
  *   node example-articles/remove.articles.js <path-to-imported-json>
  *
  * Example:
- *   node example-articles/remove.articles.js example-articles/import-logs/articles.imported.260211172255.json
+ *   node example-articles/remove.articles.js example-articles/import-logs/articles.imported.260331121414.json
  */
 
 import {

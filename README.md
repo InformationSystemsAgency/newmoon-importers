@@ -1,11 +1,8 @@
 # NewMoon Importers
 
-Node.js scripts for importing structured content into Directus.
+Node.js scripts for importing structured content into Directus of NewMoon CMS.
 
-This repository currently contains working importers for:
-
-- categories (`example-categories/`)
-- articles (`example-articles/`)
+This repository currently contains a working importer for **articles** (`example-articles/`).
 
 ## Requirements
 
@@ -21,7 +18,7 @@ This repository currently contains working importers for:
 npm install
 ```
 
-2. Configure environment in project root `.env`:
+1. Configure environment in project root `.env`:
 
 ```env
 DIRECTUS_URL=http://localhost:8055
@@ -30,74 +27,44 @@ DIRECTUS_IMPORTER_TOKEN=your_static_token_here
 
 ## Project structure
 
-- `example-categories/`
-  - `from-csv/`, `from-stream/`, `from-json/` — each with `01-extract.js`, `02-transform.js`, `03-load.js`, `run.js`
-  - `remove.categories.js`
-  - `etl/canonical.js` — JSDoc for the category tree shape
-  - `data/` — sample CSV and aliased JSON sources
-  - `README.md`
 - `example-articles/`
-  - `import.articles.js`
-  - `remove.articles.js`
-  - `README.md`
-- `utils/`
-  - shared helpers (`timestamp`, lorem text)
+  - `import-article-basic.js` — basic layout demo
+  - `import-article-advanced.js` — advanced layout (attachments, info cards) demo
+  - `lib/helpers.js` — `importArticle(payload)`
+  - `remove.articles.js` — delete articles from a snapshot file
+  - `README.md` — payload shapes, blocks, env, usage
+- `utils/` — `write-log.js` (`writeImportLog`), `timestamp.js` (log filename timestamps)
 
-## Importers
+## Articles importer
 
-### Categories importer
+Creates articles with translations, featured image upload, advanced extras when using `layout: 'advanced'`, and content blocks. Payload options and optional fields are documented in `example-articles/README.md`.
 
-Use this for creating/removing categories with translations and subcategories.
+- **Docs:** `example-articles/README.md`
 
-- docs: `example-categories/README.md`
-- import:
+**Import**
 
 ```bash
-node example-categories/from-csv/run.js
-node example-categories/from-stream/run.js
-node example-categories/from-json/run.js
+node example-articles/import-article-basic.js
+node example-articles/import-article-advanced.js
 ```
 
-- remove:
+**Remove** (pass a snapshot JSON array from `import-logs/`)
 
 ```bash
-node example-categories/remove.categories.js example-categories/import-logs/categories.imported.YYMMDDHHMMSS.json
-```
-
-### Articles importer
-
-Use this for creating/removing articles with:
-
-- translations
-- featured image upload from local files
-- category links
-- advanced layout extras (attachments, info cards)
-- content blocks (`articles_content_blocks`) including nested/composite blocks
-
-- docs: `example-articles/README.md`
-- import:
-
-```bash
-node example-articles/import.articles.js
-```
-
-- remove:
-
-```bash
-node example-articles/remove.articles.js example-articles/import-logs/articles.imported.YYMMDDHHMMSS.json
+node example-articles/remove.articles.js example-articles/import-logs/articles.imported.<timestamp>.json
 ```
 
 ## Output snapshots
 
-Each import writes a snapshot into the importer's `import-logs/` directory:
+Article imports write under `example-articles/import-logs/`:
 
-- categories: `example-categories/import-logs/categories.imported.{timestamp}.json`
-- articles: `example-articles/import-logs/articles.imported.{timestamp}.json`
+- Basic demo: `articles.imported.{timestamp}.json`
+- Advanced demo: `articles-advanced.imported.{timestamp}.json`
 
-Use these files with the matching `remove.*.js` script for cleanup.
+Use the matching path with `remove.articles.js` for cleanup.
 
 ## Notes
 
-- `import-logs/` outputs are ignored by git.
-- `date_created` fields in Directus are system-managed on create; article importer applies custom `date_created` in a follow-up update step.
-- For full block-level article data format and examples, see `example-articles/README.md`.
+- `import-logs/` outputs are typically ignored by git.
+- `date_created` in Directus is set on create; the article importer can apply a custom value in a follow-up update—see `example-articles/README.md`.
+
