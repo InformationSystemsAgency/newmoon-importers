@@ -62,13 +62,13 @@ function transform(row) {
 }
 
 // --- Load: provided by this repository ---
-const rows = await extract();
+const rows = await extract(); //EXTRACT
 const imported = [];
 const importLogsDir = path.resolve(process.cwd(), 'example-articles/import-logs');
 
 for (const row of rows) {
-  const payload = transform(row);
-  const result = await importArticle(payload);
+  const payload = transform(row); //TRANSFORM
+  const result = await importArticle(payload); //LOAD 
   imported.push(result);
   console.log('Created article', result.id);
 }
