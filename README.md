@@ -94,7 +94,7 @@ npm install
 1. Configure environment in project root `.env`:
 
 ```env
-DIRECTUS_URL=http://localhost:8055
+DIRECTUS_URL={your.cms.url}
 DIRECTUS_IMPORTER_TOKEN=your_static_token_here
 ```
 
