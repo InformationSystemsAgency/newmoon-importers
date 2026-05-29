@@ -1,6 +1,6 @@
 # NewMoon Importers
 
-Node.js scripts for importing structured content into Directus of NewMoon CMS.
+Node.js scripts for importing structured content into Directus[^directus] of NewMoon CMS. 
 
 This repository currently contains a working importer for **articles** (`example-articles/`).
 
@@ -141,3 +141,6 @@ Use the matching path with `remove.articles.js` for cleanup.
 - `import-logs/` outputs are typically ignored by git.
 - `date_created` in Directus is set on create; the article importer can apply a custom value in a follow-up update—see `example-articles/README.md`.
 
+---
+
+[^directus]: Directus is a backend CMS of NewMoon project. 
