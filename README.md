@@ -1,6 +1,6 @@
 # NewMoon Importers
 
-Node.js scripts for importing structured content into Directus[^directus] of NewMoon CMS. 
+Node.js scripts for importing structured content into Directus[^directus] of NewMoon. 
 
 This repository currently contains a working importer for **articles** (`example-articles/`).
 
@@ -98,6 +98,11 @@ DIRECTUS_URL=your.cms.url.here
 DIRECTUS_IMPORTER_TOKEN=your_static_token_here
 ```
 
+   Create a **static token** in Directus for an administrative account with the permissions needed for your import. See [how to generate a token](https://youtu.be/FR_cDNCzRa8?si=kNZmPx2TDjX5RdWH&t=350) (video).
+
+> ⚠️ **Important — revoke the token after import**  
+> When imports are finished, **revoke or rotate** that token in Directus (delete it or issue a new one) so the credential is not left active longer than necessary. Remove or update `DIRECTUS_IMPORTER_TOKEN` in `.env` if you no longer need it.
+
 ## Project structure
 
 - `example-articles/`
@@ -108,33 +113,15 @@ DIRECTUS_IMPORTER_TOKEN=your_static_token_here
   - `README.md` — payload shapes, blocks, env, usage
 - `utils/` — `write-log.js` (`writeImportLog`), `timestamp.js` (log filename timestamps)
 
-## Articles importer
 
-Creates articles with translations, featured image upload, advanced extras when using `layout: 'advanced'`, and content blocks. Payload options and optional fields are documented in `example-articles/README.md`.
 
-- **Docs:** `example-articles/README.md`
+## Importer Scripts
 
-**Import**
+### Articles importer
 
-```bash
-node example-articles/import-article-basic.js
-node example-articles/import-article-advanced.js
-```
+Creates articles with translations, featured image upload, advanced extras when using `layout: 'advanced'`, and content blocks. Payload options and optional fields are documented in:
 
-**Remove** (pass a snapshot JSON array from `import-logs/`)
-
-```bash
-node example-articles/remove.articles.js example-articles/import-logs/articles.imported.<timestamp>.json
-```
-
-## Output snapshots
-
-Article imports write under `example-articles/import-logs/`:
-
-- Basic demo: `articles.imported.{timestamp}.json`
-- Advanced demo: `articles-advanced.imported.{timestamp}.json`
-
-Use the matching path with `remove.articles.js` for cleanup.
+- **Docs:** [example-articles/README.md](./example-articles/README.md)
 
 ## Notes
 
@@ -144,3 +131,5 @@ Use the matching path with `remove.articles.js` for cleanup.
 ---
 
 [^directus]: Directus is a backend CMS of NewMoon project. 
+
+[https://directus.io/docs/](https://directus.io/docs/)
