@@ -130,6 +130,5 @@ Creates articles with translations, featured image upload, advanced extras when 
 
 ---
 
-[^directus]: Directus is a backend CMS of NewMoon project. 
+[^directus]: Directus is a backend CMS of NewMoon project: [https://directus.io/docs/](https://directus.io/docs/) 
 
-[https://directus.io/docs/](https://directus.io/docs/)
