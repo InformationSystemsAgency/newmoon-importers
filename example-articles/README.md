@@ -25,16 +25,96 @@ Run commands from the **repository root** (`newmoon-importers/`) unless you adju
 
 - **Directus** with at least:
   - `articles`, `articles_translations`
+  - `articles_sites` — **required** in current NewMoon; each article must link to at least one site (see `sites` below)
   - `articles_categories` (optional; category links skipped if missing)
   - `articles_content_blocks` (optional; blocks skipped if missing)
   - `content_types` (script checks that `content_type` exists)
+  - `sites` (source of site UUIDs for `sites` in your payload)
 - **Advanced layout** (only if you use `layout: 'advanced'` and the payloads below):
   - `file_attachments` (+ optional `file_attachments_translations`)
-  - `info_card_types` — optional overall, but required if you use `**info_card_type_upsert`**
-  - Translations collection on `info_card_types` with relation `**one_field: "translations"`** — required if you use `**match_translation`**, `**type_translations`**, or rely on the default “sync from `match_translation`” behavior (one row per locale is created/updated by `languages_code`)
+  - `info_card_types` — optional overall, but required if you use `info_card_type_upsert`
+  - Translations collection on `info_card_types` with relation `one_field: "translations"` — required if you use `match_translation`, `type_translations`, or rely on the default “sync from `match_translation`” behavior (one row per locale is created/updated by `languages_code`)
   - `info_cards` + `info_cards_translations` (both required for info cards to be created)
-- **Block collections** must be allowed on `articles_content_blocks.item` (M2A) for each block `type` you use.
+- **Block collections** must be allowed on `articles_content_blocks.item` (M2A) for each block `type` you use. NewMoon currently allows more block types than this importer implements (see [Content blocks](#content-blocks-content_blocks) below).
 - **Local files** for any `*_path` you reference (e.g. under `example-articles/attachments/`).
+- **Languages** configured in Directus (`languages` collection). Current instance: `en`, `hy`, `ru`.
+
+---
+
+## Current NewMoon schema (Directus)
+
+The tables below reflect a live schema snapshot from a connected NewMoon Directus instance. UUIDs are **examples from that instance** — copy ids from your own CMS when importing elsewhere.
+
+### CMS validation (article create)
+
+NewMoon runs hooks on `articles` create. The importer must satisfy:
+
+| Rule | How the importer handles it |
+| ---- | --------------------------- |
+| At least one site | `sites: [uuid, …]` → nested `relateds_site_ids` on create (`articles_sites`) |
+| At least one translation with `title` | `translations` nested on create (`articles_translations`) |
+
+Categories and content blocks are still linked **after** create.
+
+### Reference UUIDs (example instance)
+
+
+| Resource | UUID | Notes |
+| -------- | ---- | ----- |
+| **Site** | `482f805c-9954-420d-926a-572b3a565440` | `Default Site` (`localhost`) |
+| **Content type** | `22c336b3-7f79-4d5c-829d-808ab20efb85` | `[seed_v2] Announcements` — `import-article-basic.js` |
+| **Content type** | `3b5010f1-099f-48b5-9514-6ec2169b082a` | `[seed_v2] Updates` |
+| **Content type** | `61f12610-0603-4da4-948a-2da92f053410` | `Blog` — `import-article-advanced.js` |
+| **Content type** | `62a23e77-56f9-449b-8aa1-c18986f98925` | `[seed_v2] Guides` |
+| **Category** | `f1638ebf-f612-4b02-b5e6-4e85475a18e7` | Demo basic import |
+| **Category** | `540e771c-df83-42cd-8105-1208871f85bc` | Demo basic import |
+| **Category** | `a65bd253-8667-4b88-913d-010ecd11fbdf` | |
+| **Category** | `c01a8c1d-31ed-4f93-9a8c-9fa6a938e69a` | |
+
+### `articles` (writable fields)
+
+
+| Field | Type / choices |
+| ----- | -------------- |
+| `content_type` | UUID → `content_types` |
+| `layout` | `basic` · `advanced` |
+| `status` | `published` · `draft` · `archived` |
+| `publish_date` | timestamp (payload may use `publish_date` or `published_date`; importer maps both) |
+| `date_created` | set on insert; optional override via follow-up `update` |
+| `unpublish_date` | timestamp |
+| `show_featured_image` | boolean |
+| `show_title` | boolean |
+
+**Relations (alias, not set directly as scalar fields):** `translations`, `categories`, `content_blocks`, `file_attachments`, `info_cards`, `relateds_site_ids` (`articles_sites`).
+
+### `articles_translations` (writable fields)
+
+
+| Field | Notes |
+| ----- | ----- |
+| `languages_code` | e.g. `en`, `hy`, `ru` |
+| `title` | required |
+| `short_description` | HTML |
+| `featured_image` | file UUID (importer sets from `featured_image_path`) |
+| `customize_slug` | boolean |
+| `slug` | **read-only** in Directus — generated; not written by the importer |
+
+### Junction collections
+
+
+| Collection | Writable fields | Payload key |
+| ---------- | --------------- | ----------- |
+| `articles_sites` | `articles_id`, `sites_id` | `sites[]` (on create) |
+| `articles_categories` | `articles_id`, `categories_id` | `categories[]` |
+| `articles_content_blocks` | `articles_id`, `collection`, `item`, `order`, `hide_on_devices` | `content_blocks[]` |
+
+### Allowed article block types (Directus M2A)
+
+All types allowed on `articles_content_blocks.item` in current NewMoon:
+
+`block_title`, `block_richtext`, `block_image`, `block_gallery`, `block_video`, `block_audio`, `block_embed`, `block_button`, `block_alert`, `block_accordions`, `block_divider`, `block_social_media_links`, `block_code`, `block_group`
+
+**Implemented in `lib/helpers.js`:** `block_title`, `block_richtext`, `block_alert`, `block_image`, `block_video`, `block_gallery`, `block_accordions`, `block_embed` only.
 
 ---
 
@@ -60,21 +140,21 @@ DIRECTUS_IMPORTER_TOKEN=your_static_token_here
 **Basic example**
 
 ```bash
-cd newmoon-imorters
+cd newmoon-importers
 node example-articles/import-article-basic.js
 ```
 
 **Advanced example** (attachments + info cards)
 
 ```bash
-cd newmoon-imorters
+cd newmoon-importers
 node example-articles/import-article-advanced.js
 ```
 
 **Remove articles** using a snapshot (file must be a **JSON array** of objects with `id`):
 
 ```bash
-cd newmoon-imorters
+cd newmoon-importers
 node example-articles/remove.articles.js example-articles/import-logs/articles.imported.260331121414.json
 ```
 
@@ -89,12 +169,7 @@ Article imports write under `example-articles/import-logs/`:
 
 Use the matching path with `remove.articles.js` for cleanup.
 
-## Notes
-
-- `import-logs/` outputs are typically ignored by git.
-- `date_created` in Directus is set on create; the article importer can apply a custom value in a follow-up update—see `example-articles/README.md`.
-
-## Programmatic API
+---
 
 ### `importArticle(ARTICLE)` — `lib/helpers.js`
 
@@ -125,24 +200,25 @@ Top-level object passed to `importArticle`:
 | Field                   | Required | Description                                                                                                                                                                                                                                         |
 | ----------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `content_type`          | yes      | UUID string; must exist in `content_types`.                                                                                                                                                                                                         |
-| `translations`          | yes      | Non-empty array; each entry needs `languages_code` and `title`. Other keys (`slug`, `short_description`, …) are passed through if present in schema.                                                                                                |
-| `layout`                | no       | `basic` or `advanced` (must match Directus `articles.layout` choices when choices exist). Default treated as `basic`.                                                                                                                               |
-| `status`                | no       | Defaults to `published` if omitted. Use the same string Directus stores for the dropdown **value** (often `published` / `draft` / `archived`), not the capitalized label shown in the UI. The importer resolves casing against your schema choices. |
-| `published_date`        | no       | Falls back to `date_created` when set.                                                                                                                                                                                                              |
+| `translations`          | yes      | Non-empty array; each entry needs `languages_code` and `title`. Other writable keys: `short_description`, `customize_slug`. `slug` in examples is ignored on import (read-only in Directus). `featured_image` is set from `featured_image_path`. |
+| `sites`                 | yes*     | Array of site UUIDs from the `sites` collection. Linked via `relateds_site_ids` on create. Required when `articles_sites` exists (current NewMoon).                                                                                               |
+| `layout`                | no       | `basic` or `advanced` (must match Directus `articles.layout` choices). Default treated as `basic`.                                                                                                                                                  |
+| `status`                | no       | Defaults to `published` if omitted. Use the stored choice **value**: `published`, `draft`, or `archived`.                                                                                                                                           |
+| `publish_date`          | no       | Directus field name. You may also pass `published_date` in the payload; the importer maps either to `publish_date`. Falls back to `date_created` when set.                                                                                            |
 | `date_created`          | no       | Applied in a **second** `update` after create (Directus sets it on insert).                                                                                                                                                                         |
-| `featured_image_path`   | no       | Local path → uploaded to `/files`, id stored on translations as `featured_image` when the field exists.                                                                                                                                             |
-| `categories`            | no       | Array of category UUIDs → `articles_categories`. Set up categories manually inside your or by new script(not import-articles-*.js) NewMoon instance. Get id's from you NewMoon instance.                                                            |
-| `content_blocks`        | no       | Ordered list of block descriptors (see below).                                                                                                                                                                                                      |
-| `attachment_paths`      | advanced | Array of local paths → `file_attachments` rows (same upload rules as featured: supported extensions only — see end of this doc).                                                                                                                    |
-| `attachments`           | advanced | Alternative to `attachment_paths`: `[{ path, sort?, make_downloadable?, …, translations? }]`.                                                                                                                                                       |
-| `info_card_type_upsert` | advanced | Upsert spec for `**info_card_types`** + optional translation rows (see below). Supplies the default `**type`** id for every `info_cards[]` row unless a card sets `type` explicitly.                                                                |
-| `info_cards`            | advanced | Array of cards with `translations[]` (see below). Each card needs a `**type`** (uuid) **or** rely on `info_card_type_upsert`. Optional `sort`.                                                                                                      |
+| `featured_image_path`   | no       | Local path → uploaded to `/files`, id stored on translations as `featured_image`.                                                                                                                                                                   |
+| `categories`            | no       | Array of category UUIDs → `articles_categories` after create. Create categories in Directus first; copy ids from your instance.                                                                                                                     |
+| `content_blocks`        | no       | Ordered list of block descriptors (see below). Junction field `order`; optional `hide_on_devices` if you extend the importer payload.                                                                                                             |
+| `attachment_paths`      | advanced | Array of local paths → `file_attachments` rows (supported image extensions only — see end of this doc).                                                                                                                                             |
+| `attachments`           | advanced | Alternative to `attachment_paths`: `[{ path, sort?, make_downloadable?, hide_file_icon?, hide_file_size?, translations? }]`.                                                                                                                        |
+| `info_card_type_upsert` | advanced | Upsert spec for `info_card_types` + optional translation rows (see below). Supplies the default `type` id for every `info_cards[]` row unless a card sets `type` explicitly.                                                                        |
+| `info_cards`            | advanced | Array of cards with `translations[]`. Each card needs a `type` (integer id from `info_card_types`) **or** rely on `info_card_type_upsert`. Optional `sort`.                                                                                         |
 
 
 ### Layout behavior
 
-- `**basic`:** no `file_attachments` / `info_cards` rows are created (`attachments` and `info_cards` in the return value are `[]`). Paths in `attachment_paths` are **not** collected for upload unless layout is advanced.
-- `**advanced`:** `attachment_paths` / `attachments` are uploaded and linked; `info_cards` are created if both `info_cards` and `info_cards_translations` collections exist. Optional `**info_card_type_upsert`** creates or updates a row in `info_card_types` and uses it as the default `info_cards.type`.
+- **`basic`:** no `file_attachments` / `info_cards` rows are created (`attachments` and `info_cards` in the return value are `[]`). Paths in `attachment_paths` are **not** collected for upload unless layout is advanced.
+- **`advanced`:** `attachment_paths` / `attachments` are uploaded and linked; `info_cards` are created if both `info_cards` and `info_cards_translations` collections exist. Optional `info_card_type_upsert` creates or updates a row in `info_card_types` and uses it as the default `info_cards.type`.
 
 ### Advanced: `info_card_type_upsert` (upsert one type)
 
@@ -194,7 +270,7 @@ Each item:
 ```js
 {
   sort: 1,              // optional; default index + 1
-  type: '<uuid>',      // optional if article has info_card_type_upsert (or default type id)
+  type: 1,              // optional if article has info_card_type_upsert — integer id from info_card_types
   translations: [
     { languages_code: 'en', content: '<p>HTML</p>' },
     { languages_code: 'hy', content: '<p>…</p>' },
@@ -204,7 +280,11 @@ Each item:
 
 Every card must have at least one translation with `**languages_code**` and `**content**`.
 
-### Advanced: attachments
+### Advanced: `file_attachments` (current schema)
+
+Writable on `file_attachments`: `article`, `file`, `sort`, `make_downloadable`, `hide_file_icon`, `hide_file_size`, `pages`.
+
+Writable on `file_attachments_translations`: `file_attachments_id`, `languages_code`, `file_name`.
 
 Either:
 
@@ -226,7 +306,7 @@ If `file_attachments_translations` exists and you do **not** supply `spec.transl
 
 ## Content blocks (`content_blocks`)
 
-Only these `type` values are implemented in `lib/helpers.js`:
+Only these `type` values are implemented in `lib/helpers.js` (see [allowed types](#allowed-article-block-types-directus-m2a) above for the full Directus list):
 
 `block_title`, `block_richtext`, `block_alert`, `block_image`, `block_video`, `block_gallery`, `block_accordions`, `block_embed`
 
@@ -252,10 +332,10 @@ Importer-only keys (`upload_files_paths`, `gallery_items`, `accordions`, `image_
 ### `block_title`
 
 
-| Where            | Typical fields                                                  |
-| ---------------- | --------------------------------------------------------------- |
-| `data`           | Whatever your schema exposes (e.g. `font_size`, `column_size`). |
-| `translations[]` | `languages_code`, `title`                                       |
+| Where            | Fields (current schema)                                                                 |
+| ---------------- | --------------------------------------------------------------------------------------- |
+| `data`           | `font_size`: `h1` · `h2` · `h3` · `h4`; `column_size`: `1/1` · `1/2` · `1/3` · `2/3`; optional `text_color` |
+| `translations[]` | `languages_code`, `title`                                                               |
 
 
 ```js
@@ -274,10 +354,10 @@ Importer-only keys (`upload_files_paths`, `gallery_items`, `accordions`, `image_
 ### `block_richtext`
 
 
-| Where            | Typical fields                     |
-| ---------------- | ---------------------------------- |
-| `data`           | e.g. `font_size`, `column_size`    |
-| `translations[]` | `languages_code`, `content` (HTML) |
+| Where            | Fields (current schema)                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------ |
+| `data`           | `font_size`: `base` · `sm`; `column_size`: `1/1` · `1/2` · `1/3` · `2/3`                         |
+| `translations[]` | `languages_code`, `content` (HTML)                                                               |
 
 
 ```js
@@ -296,10 +376,10 @@ Importer-only keys (`upload_files_paths`, `gallery_items`, `accordions`, `image_
 ### `block_alert`
 
 
-| Where            | Typical fields                                                  |
-| ---------------- | --------------------------------------------------------------- |
-| `data`           | e.g. `variant` (`'info'`, … — must match your Directus choices) |
-| `translations[]` | `languages_code`, `title`, `content` (HTML)                     |
+| Where            | Fields (current schema)                                                                                  |
+| ---------------- | -------------------------------------------------------------------------------------------------------- |
+| `data`           | `variant`: `success` · `info` · `warning` · `error` · `standard`; `column_size`; optional `icon` (string) |
+| `translations[]` | `languages_code`, `title`, `content` (HTML)                                                              |
 
 
 ```js
@@ -326,10 +406,10 @@ Importer-only keys (`upload_files_paths`, `gallery_items`, `accordions`, `image_
 ### `block_image`
 
 
-| Where            | Typical fields                                                                                                                                                                                            |
+| Where            | Fields (current schema)                                                                                                                                                                                   |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data`           | e.g. `image_size`, `alignment`                                                                                                                                                                            |
-| `translations[]` | `languages_code`; `**image_path**` (repo-relative/local, uploaded like featured image) **or** `image` (existing `directus_files` id); optional `image_alt_text` and any other writable translation fields |
+| `data`           | `image_size`: `1/1` · `2/3` · `1/2` · `custom`; `alignment`: `left` · `center` · `right`; `column_size`; optional `custom_width`, `custom_height` (when `image_size` is `custom`)                          |
+| `translations[]` | `languages_code`; `image_path` (local, uploaded) **or** `image` (existing file id); optional `image_alt_text`                                                                                               |
 
 
 ```js
@@ -356,10 +436,10 @@ Importer-only keys (`upload_files_paths`, `gallery_items`, `accordions`, `image_
 ### `block_video`
 
 
-| Where            | Typical fields                                                                                                                                                                                                                                                                                                                                             |
+| Where            | Fields (current schema)                                                                                                                                                                                                                                                                                                                                    |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data`           | **URL:** e.g. `type: 'url'`, `video_url`, `video_size`. **File:** `video_file_path` (local path) is replaced with `video_file` (uuid) after upload — only extensions covered by `mimeFromExt` in `lib/helpers.js` (same image MIME map as featured images). For other formats, upload in Directus and set `video_file` to that id, or extend the MIME map. |
-| `translations[]` | Only if your schema defines a translations collection for this block; otherwise omit.                                                                                                                                                                                                                                                                      |
+| `data`           | `type`: `url` · `file`. **URL:** `video_url`, `video_size`, `alignment`, `column_size`. **File:** `video_file_path` in payload → `video_file` (uuid) after upload (image MIME map only — extend `mimeFromExt` for other formats). Sizes: `1/1` · `2/3` · `1/2` · `custom` (+ optional `custom_width` / `custom_height`). No translations collection. |
+| `translations[]` | —                                                                                                                                                                                                                                                                                                                                                          |
 
 
 ```js
@@ -379,13 +459,13 @@ Importer-only keys (`upload_files_paths`, `gallery_items`, `accordions`, `image_
 
 ### `block_gallery`
 
-Requires `upload_here` and/or `gallery_items` relations on `block_gallery` when you use the matching payload keys.
+Requires `upload_here` (`block_gallery_files`) and/or `gallery_items` (`block_gallery_items`) relations when you use the matching payload keys. The main `block_gallery` row has no writable scalar fields in the current schema.
 
 
 | Where     | Fields                                                                                                                                                                                     |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Top-level | `upload_files_paths[]` — each path becomes a child row linking `directus_files_id` (via `upload_here`).                                                                                    |
-| Top-level | `gallery_items[]` — each item: optional `order` / `sort` (junction sort), `image_path` → `image`; optional nested `translations[]` with `languages_code` and fields like `image_alt_text`. |
+| Top-level | `upload_files_paths[]` — each path → `block_gallery_files` child with `directus_files_id`.                                                                                                   |
+| Top-level | `gallery_items[]` — each item: `order`; `image_path` → `image`; optional `translations[]` with `languages_code`, `image_alt_text`.                                                       |
 
 
 ```js
@@ -419,13 +499,13 @@ Child rows also accept `directus_files_path` / `file_path` instead of pre-upload
 
 ### `block_accordions`
 
-Requires an `accordions` relation on `block_accordions`.
+Requires an `accordions` relation → `block_accordion_items`.
 
 
-| Where          | Fields                                                                                                                                    |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `data`         | e.g. `column_size` (whatever is writable on the block row).                                                                               |
-| `accordions[]` | Each panel: optional `sort` / `order`; `translations[]` with `languages_code`, `title`, `content` (HTML), plus any other writable fields. |
+| Where          | Fields                                                                                                                                                    |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data`         | `column_size`: `1/1` · `1/2` · `1/3` · `2/3`                                                                                                             |
+| `accordions[]` | Each panel: `sort`; optional `action_button_icon`, `action_button_link`; `translations[]` with `languages_code`, `title`, `content`, `action_button_label` |
 
 
 ```js
@@ -454,9 +534,9 @@ Requires an `accordions` relation on `block_accordions`.
 ### `block_embed`
 
 
-| Where  | Fields                                                                                                                                                  |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data` | At least one of `**url**` or `**code**`. Optional `mode` and other writable columns. Validation in code: `block_embed needs data.url and/or data.code`. |
+| Where  | Fields (current schema)                                                                                                      |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `data` | `mode`: `url` · `code`; at least one of `url` or `code`; optional `alignment`, `column_size` (`1/1` · `1/2` · `1/3` · `2/3`) |
 
 
 ```js
@@ -503,7 +583,7 @@ Use the same array shape if you build a file by hand for `remove.articles.js`. A
 
 1. Reads JSON; must be a **non-empty array**.
 2. Collects each element’s `id`.
-3. For each id, deletes rows in (when possible): `articles_categories`, `articles_content_blocks`, `block_content_display_articles` filtered by `articles_id`.
+3. For each id, deletes rows in (when possible): `articles_categories`, `articles_sites`, `articles_content_blocks`, `block_content_display_articles` filtered by `articles_id`.
 4. Deletes the `articles` row.
 
 It does **not** delete uploaded Directus files, block items, gallery children, accordion children, `file_attachments`, or `info_cards` by default—only what Directus cascades or you clean separately. Extend the script if you need deeper cleanup.
@@ -524,8 +604,13 @@ Uploads support common **image** extensions (`.png`, `.jpg`, `.jpeg`, `.webp`, `
 
 ## Notes
 
+- `import-logs/` outputs are typically ignored by git.
+- `date_created` in Directus is set on create; the article importer can apply a custom value in a follow-up update.
 - **Schema-driven fields:** Only writable fields present in the snapshot are sent; unknown keys in your payload are ignored by `pick` (importer-only keys like `match_translation` are handled separately and never passed to `createItem` on the wrong collection).
-- **Layouts:** If `articles.layout` has fixed choices in Directus, your string must match one of them (case-insensitive).
-- **Status:** Must match the choice **value** stored in Directus (often lowercase), not the admin UI label — see the `status` row in the table above.
-- **Warnings:** If a block type is not in `articles_content_blocks.item`’s allowed list, you’ll see a console warning; creation will fail if you still use that type.
-
+- **Layouts:** `articles.layout` choices are `basic` and `advanced` (case-insensitive match).
+- **Status:** Use choice values `published`, `draft`, or `archived` — not admin UI labels.
+- **Sites:** Required on create in current NewMoon; use at least one id from `sites`.
+- **Slugs:** `articles_translations.slug` is read-only; Directus generates it from `title` unless `customize_slug` is used in the admin UI.
+- **Publish date:** Directus field is `publish_date`; payload may use `publish_date` or `published_date`.
+- **Warnings:** If a block type is not in `articles_content_blocks.item`'s allowed list, you'll see a console warning; creation will fail if you still use that type.
+- **Unsupported blocks:** Types such as `block_audio`, `block_button`, `block_divider`, `block_social_media_links`, `block_code`, and `block_group` are allowed in Directus but not implemented in this importer yet.

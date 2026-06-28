@@ -20,16 +20,17 @@ const __dirname = pathModule.dirname(__filename);
 // ---------------------------------------------------------------------------
 
 const ArticleBasicLayout = {
-  content_type: 'a41b2288-526c-4241-baa4-6af53257bc06',
+  content_type: '22c336b3-7f79-4d5c-829d-808ab20efb85',
   // Must match Directus `articles.status` choice **value** (often lowercase), not the admin label.
   status: 'published',
   layout: 'basic',
   date_created: '2026-03-31T12:00:00.000Z',
   published_date: '2026-03-31T12:00:00.000Z',
   featured_image_path: 'attachments/1-800x600.png',
+  sites: ['482f805c-9954-420d-926a-572b3a565440'],
   categories: [
-    '2af20969-1152-4165-8c37-99357760fd6f',
-    'fbaaea30-78e4-4a98-bcf8-51c766ad58e5',
+    'f1638ebf-f612-4b02-b5e6-4e85475a18e7',
+    '540e771c-df83-42cd-8105-1208871f85bc',
   ],
   translations: [
     {

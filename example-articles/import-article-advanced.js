@@ -20,13 +20,14 @@ const __dirname = pathModule.dirname(__filename);
 // ---------------------------------------------------------------------------
 
 const ArticleLayoutAdvanced = {
-  content_type: 'a41b2288-526c-4241-baa4-6af53257bc06',
+  content_type: '61f12610-0603-4da4-948a-2da92f053410', // Blog
   // Must match Directus `articles.status` choice **value** (often lowercase), not the admin label.
   status: 'published',
   layout: 'advanced',
   date_created: '2026-03-31T12:00:00.000Z',
   published_date: '2026-03-31T12:00:00.000Z',
   featured_image_path: 'attachments/1-800x600.png',
+  sites: ['482f805c-9954-420d-926a-572b3a565440'],
   /** Two downloadable files linked as `file_attachments` (advanced layout). Paths must be uploaded like other media. */
   attachment_paths: ['attachments/1-800x600.png', 'attachments/3-800x600.png'],
   /**

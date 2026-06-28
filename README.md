@@ -1,6 +1,8 @@
 # NewMoon Importers
 
-Node.js scripts for importing structured content into Directus[^directus] of NewMoon. 
+Node.js scripts for importing structured content into Directus[^directus] of NewMoon.
+
+**Compatible with NewMoon `2.*.*` and later.** The article importer targets the NewMoon 2.x Directus schema (multi-site articles, `articles_sites`, current block types, and related collections). Older NewMoon 1.x instances are not supported.
 
 This repository currently contains a working importer for **articles** (`example-articles/`).
 
@@ -40,6 +42,7 @@ function transform(row) {
     content_type: 'YOUR_ARTICLES_CONTENT_TYPE_UUID',
     status: 'published',
     layout: 'basic',
+    sites: ['YOUR_SITE_UUID'],
     featured_image_path: row.coverImagePath, // optional; path relative to cwd
     translations: [
       {
@@ -79,6 +82,7 @@ console.log('Snapshot for remove.articles.js:', logPath);
 
 ## Requirements
 
+- **NewMoon `2.*.*`** (Directus backend with NewMoon 2.x collections and validation hooks)
 - Node.js 18+
 - Access to a Directus instance
 - A static API token with required collection permissions
@@ -119,7 +123,7 @@ DIRECTUS_IMPORTER_TOKEN=your_static_token_here
 
 ### Articles importer
 
-Creates articles with translations, featured image upload, advanced extras when using `layout: 'advanced'`, and content blocks. Payload options and optional fields are documented in:
+Creates articles with translations, featured image upload, site links, advanced extras when using `layout: 'advanced'`, and content blocks. Payload options and optional fields are documented in:
 
 - **Docs:** [example-articles/README.md](./example-articles/README.md)
 
