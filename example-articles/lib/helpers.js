@@ -44,8 +44,12 @@ import {
     articles: 'articles',
     articles_translations: 'articles_translations',
     articles_categories: 'articles_categories',
+    articles_sites: 'articles_sites',
     articles_content_blocks: 'articles_content_blocks',
   };
+
+  /** M2M alias on `articles` for `articles_sites` (Directus field name). */
+  const ARTICLE_SITES_RELATION_FIELD = 'relateds_site_ids';
 
   const FILE_ATTACHMENTS_COLLECTION = 'file_attachments';
   const FILE_ATTACHMENTS_TRANSLATIONS_COLLECTION = 'file_attachments_translations';
@@ -96,13 +100,42 @@ import {
     const schema = await loadSimpleSchema();
   
     await assertContentTypeExists(ARTICLE.content_type);
-  
+
+    const siteIds = uniqueStrings(ARTICLE.sites ?? []);
+    if (schema.hasSiteJunction && siteIds.length === 0) {
+      throw new Error(
+        'Article must be linked to at least one site. Add sites: [site_uuid, ...] to your payload.'
+      );
+    }
+    if (siteIds.length > 0) {
+      await assertSiteIdsExist(siteIds);
+    }
+
     const mediaPaths = collectArticleMediaPaths(ARTICLE);
     const pathToFileId = await uploadLocalFiles(mediaPaths);
     const featuredFileId = ARTICLE.featured_image_path
       ? pathToFileId.get(ARTICLE.featured_image_path)
       : undefined;
   
+    const translationCreates = [];
+    for (const tr of ARTICLE.translations ?? []) {
+      if (!tr.languages_code || !tr.title) {
+        throw new Error('Each translation needs languages_code and title.');
+      }
+      translationCreates.push(
+        pick(
+          {
+            ...tr,
+            featured_image: featuredFileId,
+          },
+          schema.translationFields
+        )
+      );
+    }
+    if (translationCreates.length === 0) {
+      throw new Error('Article needs at least one translation with languages_code and title.');
+    }
+
     const articlePayload = pick(
       {
         content_type: ARTICLE.content_type,
@@ -112,34 +145,30 @@ import {
             }
           : {}),
         layout: normalizeArticleLayout(ARTICLE.layout, schema.allowedLayouts),
-        published_date: ARTICLE.published_date ?? ARTICLE.date_created,
+        ...(schema.articleFields.includes('publish_date') &&
+        (ARTICLE.publish_date ?? ARTICLE.published_date ?? ARTICLE.date_created)
+          ? {
+              publish_date:
+                ARTICLE.publish_date ?? ARTICLE.published_date ?? ARTICLE.date_created,
+            }
+          : {}),
       },
       schema.articleFields
     );
-  
+
+    if (schema.hasSiteJunction && siteIds.length > 0) {
+      articlePayload[ARTICLE_SITES_RELATION_FIELD] = siteIds.map((sites_id) => ({ sites_id }));
+    }
+    articlePayload.translations = { create: translationCreates };
+
     const created = await client.request(createItem(C.articles, articlePayload));
     const articleId = created?.id ?? created?.data?.id;
     if (!articleId) throw new Error('Could not read new article id from Directus.');
-  
+
     if (ARTICLE.date_created) {
       await client.request(
         updateItem(C.articles, articleId, { date_created: ARTICLE.date_created })
       );
-    }
-  
-    for (const tr of ARTICLE.translations) {
-      if (!tr.languages_code || !tr.title) {
-        throw new Error('Each translation needs languages_code and title.');
-      }
-      const trPayload = pick(
-        {
-          ...tr,
-          articles_id: articleId,
-          featured_image: featuredFileId,
-        },
-        schema.translationFields
-      );
-      await client.request(createItem(C.articles_translations, trPayload));
     }
   
     if (schema.hasCategoryJunction) {
@@ -396,6 +425,8 @@ import {
       translationFields: writableFieldNames(fields, C.articles_translations, ['id']),
       hasCategoryJunction: collections.some((c) => c.collection === C.articles_categories),
       junctionFields: writableFieldNames(fields, C.articles_categories, ['id']),
+      hasSiteJunction: collections.some((c) => c.collection === C.articles_sites),
+      siteJunctionFields: writableFieldNames(fields, C.articles_sites, ['id']),
       hasContentBlocksJunction: collections.some((c) => c.collection === C.articles_content_blocks),
       contentBlockJunctionFields: writableFieldNames(fields, C.articles_content_blocks, ['id']),
       allowedLayouts,
@@ -818,6 +849,21 @@ import {
       readItems('content_types', { filter: { id: { _eq: id } }, fields: ['id'], limit: 1 })
     );
     if (!rows?.length) throw new Error(`Unknown content_type id: ${id}`);
+  }
+
+  async function assertSiteIdsExist(ids) {
+    const rows = await client.request(
+      readItems('sites', {
+        filter: { id: { _in: ids } },
+        fields: ['id'],
+        limit: ids.length,
+      })
+    );
+    const found = new Set((rows ?? []).map((row) => row.id));
+    const missing = ids.filter((id) => !found.has(id));
+    if (missing.length > 0) {
+      throw new Error(`Unknown site id(s): ${missing.join(', ')}`);
+    }
   }
   
   async function pathExists(filePath) {

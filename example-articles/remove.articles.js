@@ -50,6 +50,7 @@ const client = createDirectus(directusUrl)
 const ARTICLES_COLLECTION = 'articles';
 const OPTIONAL_LINK_COLLECTIONS = [
   'articles_categories',
+  'articles_sites',
   'articles_content_blocks',
   'block_content_display_articles',
 ];
