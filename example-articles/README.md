@@ -209,7 +209,7 @@ Top-level object passed to `importArticle`:
 | `featured_image_path`   | no       | Local path → uploaded to `/files`, id stored on translations as `featured_image`.                                                                                                                                                                   |
 | `categories`            | no       | Array of category UUIDs → `articles_categories` after create. Create categories in Directus first; copy ids from your instance.                                                                                                                     |
 | `content_blocks`        | no       | Ordered list of block descriptors (see below). Junction field `order`; optional `hide_on_devices` if you extend the importer payload.                                                                                                             |
-| `attachment_paths`      | advanced | Array of local paths → `file_attachments` rows (supported image extensions only — see end of this doc).                                                                                                                                             |
+| `attachment_paths`      | advanced | Array of local paths → `file_attachments` rows (supported extensions — see end of this doc).                                                                                                                                                        |
 | `attachments`           | advanced | Alternative to `attachment_paths`: `[{ path, sort?, make_downloadable?, hide_file_icon?, hide_file_size?, translations? }]`.                                                                                                                        |
 | `info_card_type_upsert` | advanced | Upsert spec for `info_card_types` + optional translation rows (see below). Supplies the default `type` id for every `info_cards[]` row unless a card sets `type` explicitly.                                                                        |
 | `info_cards`            | advanced | Array of cards with `translations[]`. Each card needs a `type` (integer id from `info_card_types`) **or** rely on `info_card_type_upsert`. Optional `sort`.                                                                                         |
@@ -282,25 +282,25 @@ Every card must have at least one translation with `**languages_code**` and `**c
 
 ### Advanced: `file_attachments` (current schema)
 
-Writable on `file_attachments`: `article`, `file`, `sort`, `make_downloadable`, `hide_file_icon`, `hide_file_size`, `pages`.
+Writable on `file_attachments`: `article`, `file`, `sort`, `make_downloadable`, `hide_file_icon`, `hide_file_size`, `pages`, `list_file_name`.
 
-Writable on `file_attachments_translations`: `file_attachments_id`, `languages_code`, `file_name`.
+Writable on `file_attachments_translations`: `file_attachments_id`, `languages_code`, `file_name`, and **`file`** (per-locale file id — required for the CMS UI to show a downloadable file, not only the name).
 
 Either:
 
 ```js
-attachment_paths: ['attachments/a.png', 'attachments/b.png'],
+attachment_paths: ['files/article_p.docx', 'files/article_e.xlsx'],
 ```
 
 or:
 
 ```js
 attachments: [
-  { path: 'attachments/a.png', sort: 1, file_name: 'custom-name.png' },
+  { path: 'files/article_p.docx', sort: 1, file_name: 'Report.docx' },
 ],
 ```
 
-If `file_attachments_translations` exists and you do **not** supply `spec.translations`, display names are filled from article `translations` × default basename.
+If `file_attachments_translations` exists and you do **not** supply `spec.translations`, the importer fills one row per article locale with `file_name` (basename) and the uploaded `file` id. Existing auto-created translation rows are **updated** (so `file` is set) instead of duplicated.
 
 ---
 
@@ -325,7 +325,7 @@ Every entry in `content_blocks` is an object with:
 
 Importer-only keys (`upload_files_paths`, `gallery_items`, `accordions`, `image_path`, `video_file_path`, …) are stripped or mapped before `createItem`; they never go to the wrong collection.
 
-**Non-empty `translations` required** (when that block has a translations relation in Directus) for: `block_title`, `block_richtext`, `block_alert`, `block_image`.
+**Non-empty `translations` required** (when that block has a translations relation in Directus) for: `block_title`, `block_richtext`, `block_alert`, `block_image`, `block_video` (with `video_url` per locale for URL type).
 
 ---
 
@@ -438,19 +438,22 @@ Importer-only keys (`upload_files_paths`, `gallery_items`, `accordions`, `image_
 
 | Where            | Fields (current schema)                                                                                                                                                                                                                                                                                                                                    |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data`           | `type`: `url` · `file`. **URL:** `video_url`, `video_size`, `alignment`, `column_size`. **File:** `video_file_path` in payload → `video_file` (uuid) after upload (image MIME map only — extend `mimeFromExt` for other formats). Sizes: `1/1` · `2/3` · `1/2` · `custom` (+ optional `custom_width` / `custom_height`). No translations collection. |
-| `translations[]` | —                                                                                                                                                                                                                                                                                                                                                          |
+| `data`           | `type`: `url` · `file`. **URL mode:** put `video_url` on **`translations[]`** (NewMoon requires a URL for at least one language on create). Also `video_size`, `alignment`, `column_size`. **File:** `video_file_path` in payload → `video_file` (uuid) after upload. Sizes: `1/1` · `2/3` · `1/2` · `custom` (+ optional `custom_width` / `custom_height`). |
+| `translations[]` | `languages_code`, `video_url` (required for URL type — nested on create). Legacy: a single `data.video_url` is copied to `en` + `hy` translations if `translations` is omitted.                                                                                                                                                                          |
 
 
 ```js
-// External URL
+// External URL (per language)
 {
   type: 'block_video',
   data: {
     type: 'url',
-    video_url: 'https://www.youtube.com/watch?v=…',
     video_size: '1/1',
   },
+  translations: [
+    { languages_code: 'en', video_url: 'https://www.youtube.com/watch?v=…' },
+    { languages_code: 'hy', video_url: 'https://www.youtube.com/watch?v=…' },
+  ],
 },
 
 ```
@@ -598,7 +601,10 @@ For any local path string, the helper tries in order:
 2. `path.resolve(example-articles/, rawPath)` (parent of `lib/`)
 3. `path.resolve(example-articles/lib/, rawPath)`
 
-Uploads support common **image** extensions (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.svg`, `.avif`).
+Uploads support:
+
+- **Images:** `.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.svg`, `.avif`
+- **Documents / archives:** `.pdf`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.zip`
 
 ---
 

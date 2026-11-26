@@ -20,16 +20,17 @@ const __dirname = pathModule.dirname(__filename);
 // ---------------------------------------------------------------------------
 
 const ArticleLayoutAdvanced = {
-  content_type: '61f12610-0603-4da4-948a-2da92f053410', // Blog
+  // Local instance UUIDs (content_types / sites differ per Directus).
+  content_type: '77b0bfab-f7de-40f5-b1ee-eab71a2f8597', // Blog
   // Must match Directus `articles.status` choice **value** (often lowercase), not the admin label.
   status: 'published',
   layout: 'advanced',
   date_created: '2026-03-31T12:00:00.000Z',
   published_date: '2026-03-31T12:00:00.000Z',
   featured_image_path: 'attachments/1-800x600.png',
-  sites: ['482f805c-9954-420d-926a-572b3a565440'],
-  /** Two downloadable files linked as `file_attachments` (advanced layout). Paths must be uploaded like other media. */
-  attachment_paths: ['attachments/1-800x600.png', 'attachments/3-800x600.png'],
+  sites: ['ce7bd94f-e9b0-4f94-935a-717620a56e3f'], // Default Site (localhost)
+  /** Word + Excel test files → `file_attachments` (advanced layout). */
+  attachment_paths: ['files/article_p.docx', 'files/article_e.xlsx'],
   /**
    * Many projects store the type label on `info_card_types_translations`, not on `info_card_types`.
    * Use `match_translation` to find an existing type. On first create, if `icon` is omitted, the importer copies
@@ -62,8 +63,8 @@ const ArticleLayoutAdvanced = {
     },
   ],
   categories: [
-    '2af20969-1152-4165-8c37-99357760fd6f',
-    'fbaaea30-78e4-4a98-bcf8-51c766ad58e5',
+    '64ab9b5a-c908-427b-b23a-4545b5b06f08',
+    'ef87ec89-d3fc-4071-8474-e62d254b2b7c',
   ],
   translations: [
     {
@@ -132,9 +133,18 @@ const ArticleLayoutAdvanced = {
       type: 'block_video',
       data: {
         type: 'url',
-        video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
         video_size: '1/1',
       },
+      translations: [
+        {
+          languages_code: 'en',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        },
+        {
+          languages_code: 'hy',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        },
+      ],
     },
     {
       type: 'block_gallery',
