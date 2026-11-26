@@ -89,6 +89,7 @@ import {
     'block_richtext',
     'block_alert',
     'block_image',
+    'block_video',
   ]);
   
   // ---------------------------------------------------------------------------
@@ -516,6 +517,8 @@ import {
     if (!schema.hasFileAttachments || !isAdvancedLayout(row.layout ?? 'basic')) return [];
     const specs = buildAttachmentSpecsForRow(row);
     const created = [];
+    const trFields = schema.fileAttachmentTranslationFields ?? [];
+    const translationHasFile = trFields.includes('file');
 
     for (const spec of specs) {
       const fileId = localPathToFileMap.get(spec.path);
@@ -532,6 +535,7 @@ import {
           make_downloadable: spec.make_downloadable ?? true,
           hide_file_icon: spec.hide_file_icon ?? false,
           hide_file_size: spec.hide_file_size ?? false,
+          list_file_name: spec.file_name ?? baseName,
         },
         schema.fileAttachmentFields
       );
@@ -549,19 +553,46 @@ import {
             : (row.translations ?? []).map((tr) => ({
                 languages_code: tr.languages_code,
                 file_name: spec.file_name ?? baseName,
+                file: fileId,
               }));
+
+        // NewMoon may auto-create empty translation rows on attachment create — sync those first.
+        const existing = await client.request(
+          readItems(FILE_ATTACHMENTS_TRANSLATIONS_COLLECTION, {
+            filter: { file_attachments_id: { _eq: attachmentId } },
+            fields: ['id', 'languages_code'],
+            limit: -1,
+          })
+        );
+        const existingByLang = new Map(
+          (Array.isArray(existing) ? existing : []).map((t) => [t.languages_code, t.id])
+        );
 
         for (const tr of trRows) {
           if (!tr?.languages_code) continue;
+          const localeFileId = tr.file ? localPathToFileMap.get(tr.file) ?? tr.file : fileId;
           const trPayload = pick(
             {
               file_attachments_id: attachmentId,
               languages_code: tr.languages_code,
               file_name: tr.file_name ?? spec.file_name ?? baseName,
+              ...(translationHasFile ? { file: localeFileId } : {}),
             },
-            schema.fileAttachmentTranslationFields
+            trFields
           );
-          await client.request(createItem(FILE_ATTACHMENTS_TRANSLATIONS_COLLECTION, trPayload));
+
+          const existingId = existingByLang.get(tr.languages_code);
+          if (existingId != null) {
+            const { file_attachments_id: _fk, languages_code: _lang, ...updateFields } = trPayload;
+            if (Object.keys(updateFields).length > 0) {
+              await client.request(
+                updateItem(FILE_ATTACHMENTS_TRANSLATIONS_COLLECTION, existingId, updateFields)
+              );
+            }
+            existingByLang.delete(tr.languages_code);
+          } else {
+            await client.request(createItem(FILE_ATTACHMENTS_TRANSLATIONS_COLLECTION, trPayload));
+          }
         }
       }
 
@@ -897,6 +928,12 @@ import {
       '.gif': 'image/gif',
       '.svg': 'image/svg+xml',
       '.avif': 'image/avif',
+      '.pdf': 'application/pdf',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.xls': 'application/vnd.ms-excel',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.zip': 'application/zip',
     };
     return map[ext] ?? null;
   }
@@ -907,7 +944,7 @@ import {
       throw new Error(`File not found: ${rawPath} (tried ${absolutePath})`);
     }
     const mime = mimeFromExt(absolutePath);
-    if (!mime) throw new Error(`Unsupported image type for: ${absolutePath}`);
+    if (!mime) throw new Error(`Unsupported file type for: ${absolutePath}`);
   
     const buf = await fs.readFile(absolutePath);
     const form = new FormData();
@@ -1002,28 +1039,50 @@ import {
       }
     }
   
-    const blockPayload = pick(data, bs.fields);
-    const created = await client.request(createItem(type, blockPayload));
-    const blockId = created?.id ?? created?.data?.id;
-    if (!blockId) throw new Error(`No id returned when creating ${type}`);
-  
     const trCfg = bs.translations;
-    if (trCfg) {
-      const translations = block.translations ?? [];
-      if (BLOCK_TYPES_REQUIRING_TRANSLATIONS.has(type) && translations.length === 0) {
-        throw new Error(`${type} needs a non-empty translations array`);
-      }
+    let translations = Array.isArray(block.translations) ? [...block.translations] : [];
+    // NewMoon validates video URL on create via translations; accept legacy data.video_url.
+    if (type === 'block_video' && translations.length === 0 && data.video_url) {
+      translations = [
+        { languages_code: 'en', video_url: data.video_url },
+        { languages_code: 'hy', video_url: data.video_url },
+      ];
+      delete data.video_url;
+    }
+
+    if (trCfg && BLOCK_TYPES_REQUIRING_TRANSLATIONS.has(type) && translations.length === 0) {
+      throw new Error(
+        type === 'block_video'
+          ? 'block_video needs translations with video_url for at least one language (or data.video_url).'
+          : `${type} needs a non-empty translations array`
+      );
+    }
+
+    const translationCreates = [];
+    if (trCfg && translations.length > 0) {
       for (const tr of translations) {
         if (!tr.languages_code) continue;
-        const row = { ...tr, [trCfg.foreignField]: blockId };
+        const row = { ...tr };
         if (row.image_path && trCfg.fields.includes('image')) {
           const fid = pathToFileId.get(row.image_path);
           if (!fid) throw new Error(`No file id for image_path: ${row.image_path}`);
           row.image = fid;
+          delete row.image_path;
         }
-        await client.request(createItem(trCfg.collection, pick(row, trCfg.fields)));
+        // Nested create: omit parent FK; Directus sets it via the relation.
+        const picked = pick(row, trCfg.fields.filter((f) => f !== trCfg.foreignField));
+        if (Object.keys(picked).length > 0) translationCreates.push(picked);
       }
     }
+
+    const blockPayload = pick(data, bs.fields);
+    // Nest translations on create so NewMoon hooks (e.g. block_video URL) can validate.
+    if (translationCreates.length > 0) {
+      blockPayload.translations = { create: translationCreates };
+    }
+    const created = await client.request(createItem(type, blockPayload));
+    const blockId = created?.id ?? created?.data?.id;
+    if (!blockId) throw new Error(`No id returned when creating ${type}`);
   
     let accordionIds = [];
     if (type === 'block_accordions') {
